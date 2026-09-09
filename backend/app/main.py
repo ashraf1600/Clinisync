@@ -53,7 +53,7 @@ async def app_exception_handler(request: Request, exc: AppException):
 # Health Check Route
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health_check():
-    return {"status": "ok", "environment": settings.ENVIRONMENT, "version": "1.1.0"}
+    return {"status": "ok", "environment": settings.ENVIRONMENT, "version": "1.1.1"}
 
 # Mount All 27 Endpoints under /api/v1
 api_v1 = settings.API_V1_STR

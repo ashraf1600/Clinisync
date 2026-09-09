@@ -275,4 +275,5 @@ export const App: React.FC = () => {
   );
 };
 
+// Version 1.1.1 - CliniSync Platform
 export default App;
