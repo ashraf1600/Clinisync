@@ -30,6 +30,53 @@ class AppointmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    async def _notify(
+        self,
+        user_id: uuid.UUID,
+        ntype: str,
+        title: str,
+        body: str,
+        appointment_id: uuid.UUID | None = None,
+        metadata: dict | None = None,
+    ) -> None:
+        """Fail-safe in-app notification: must never break the main transaction."""
+        try:
+            self.db.add(
+                Notification(
+                    user_id=user_id,
+                    appointment_id=appointment_id,
+                    title=title,
+                    body=body,
+                    notification_type=ntype,
+                    metadata_=metadata or {},
+                )
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+
+    def _dhaka_day_bounds_utc(self, target_date: date) -> tuple[datetime, datetime]:
+        start_utc = datetime(
+            target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=_DHAKA_TZ
+        ).astimezone(timezone.utc)
+        return start_utc, start_utc + timedelta(days=1)
+
+    async def _today_waiting(self, doctor_id: uuid.UUID) -> list:
+        """Today's (Dhaka) pending/confirmed appointments, ordered by serial."""
+        today = datetime.now(_DHAKA_TZ).date()
+        start_utc, end_utc = self._dhaka_day_bounds_utc(today)
+        res = await self.db.execute(
+            select(Appointment).where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Appointment.status.in_(["pending", "confirmed"]),
+                    Appointment.start_time >= start_utc,
+                    Appointment.start_time < end_utc,
+                )
+            ).order_by(Appointment.token_number.asc())
+        )
+        return list(res.scalars().all())
+
     async def get_by_id(self, appointment_id: uuid.UUID) -> Appointment | None:
         result = await self.db.execute(
             select(Appointment).where(Appointment.id == appointment_id)
@@ -196,6 +243,17 @@ class AppointmentService:
         room_name = appt.location.chamber_room if appt.location else (appt.doctor.chamber_room if appt.doctor else "Room #402, Level 4")
         branch_name = appt.location.branch_area if appt.location else None
 
+        doc_name = appt.doctor.user.name if (appt.doctor and appt.doctor.user) else "Doctor"
+        new_when = data.new_start_time.strftime("%b %d, %I:%M %p")
+        await self._notify(
+            appt.patient_id,
+            "queue_update",
+            "Appointment Rescheduled 🔄",
+            f"Serial #{appt.token_number} with {doc_name} moved to {new_when}.",
+            appointment_id=appt.id,
+            metadata={"tokenNumber": appt.token_number, "doctorName": doc_name, "newStartTime": data.new_start_time.isoformat()},
+        )
+
         return AppointmentRead(
             id=appt.id,
             patient_id=appt.patient_id,
@@ -224,6 +282,17 @@ class AppointmentService:
         appt.status = "cancelled"
         appt.cancellation_reason = reason
         await self.db.commit()
+
+        doc_name = appt.doctor.user.name if (appt.doctor and appt.doctor.user) else "Doctor"
+        when = appt.start_time.strftime("%b %d, %I:%M %p") if appt.start_time else ""
+        await self._notify(
+            appt.patient_id,
+            "cancelled",
+            "Appointment Cancelled ❌",
+            f"Serial #{appt.token_number} with {doc_name} on {when} is cancelled. The slot is now free for others.",
+            appointment_id=appt.id,
+            metadata={"tokenNumber": appt.token_number, "doctorName": doc_name, "reason": reason},
+        )
         return {"id": str(appt.id), "status": "cancelled", "cancelledAt": datetime.now(timezone.utc).isoformat()}
 
     async def update_status(self, appointment_id: uuid.UUID, new_status: str) -> dict:
@@ -234,6 +303,27 @@ class AppointmentService:
             raise BadRequestException(f"Invalid status '{new_status}'")
         appt.status = new_status
         await self.db.commit()
+
+        doc_name = appt.doctor.user.name if (appt.doctor and appt.doctor.user) else "Doctor"
+        meta = {"tokenNumber": appt.token_number, "doctorName": doc_name}
+        if new_status == "completed":
+            await self._notify(
+                appt.patient_id, "system", "Visit Completed ✅",
+                f"Serial #{appt.token_number} with {doc_name} is marked completed. Get well soon!",
+                appointment_id=appt.id, metadata=meta,
+            )
+        elif new_status == "no_show":
+            await self._notify(
+                appt.patient_id, "system", "Marked as No-Show ⚠️",
+                f"Serial #{appt.token_number} with {doc_name} was marked as no-show. Please contact the chamber to rebook.",
+                appointment_id=appt.id, metadata=meta,
+            )
+        elif new_status == "cancelled":
+            await self._notify(
+                appt.patient_id, "cancelled", "Appointment Cancelled ❌",
+                f"Serial #{appt.token_number} with {doc_name} was cancelled by the clinic.",
+                appointment_id=appt.id, metadata=meta,
+            )
         return {"id": str(appt.id), "status": appt.status, "updatedAt": datetime.now(timezone.utc).isoformat()}
 
     async def get_doctor_queue(self, doctor_id: uuid.UUID, target_date: date, user_role: str) -> DoctorQueueResponse:
@@ -433,6 +523,12 @@ class AppointmentService:
     async def pause_queue(self, doctor_id: uuid.UUID, data: QueuePauseRequest) -> QueuePauseResponse:
         # Enforce Doctor Break "Empty Chamber" Invariant:
         # Mark currently active appointment as completed so chamber is strictly empty
+        doc_res = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+        doctor = doc_res.scalar_one_or_none()
+        if not doctor:
+            raise NotFoundException(f"Doctor '{doctor_id}' not found")
+        doc_name = doctor.user.name if doctor.user else "Doctor"
+
         now = datetime.now(timezone.utc)
         resume_at = now + timedelta(minutes=data.pause_minutes)
 
@@ -441,6 +537,17 @@ class AppointmentService:
             "resume_at": resume_at,
             "pause_minutes": data.pause_minutes
         }
+
+        # Notify today's waiting patients (this is what trackers display)
+        for w in await self._today_waiting(doctor_id):
+            await self._notify(
+                w.patient_id,
+                "doctor_break",
+                "Doctor on a Short Break ☕",
+                f"{doc_name} paused the queue for ~{data.pause_minutes} min. Your serial #{w.token_number} is held — please stay nearby.",
+                appointment_id=w.id,
+                metadata={"tokenNumber": w.token_number, "doctorName": doc_name, "pauseMinutes": data.pause_minutes},
+            )
 
         return QueuePauseResponse(
             is_paused=True,
@@ -451,10 +558,29 @@ class AppointmentService:
         )
 
     async def resume_queue(self, doctor_id: uuid.UUID) -> QueueResumeResponse:
+        doc_res = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+        doctor = doc_res.scalar_one_or_none()
+        if not doctor:
+            raise NotFoundException(f"Doctor '{doctor_id}' not found")
+        doc_name = doctor.user.name if doctor.user else "Doctor"
+
         queue_pause_registry[str(doctor_id)] = {"is_paused": False}
+
+        waiting = await self._today_waiting(doctor_id)
+        next_serial = waiting[0].token_number if waiting else 0
+        for w in waiting:
+            await self._notify(
+                w.patient_id,
+                "queue_update",
+                "Queue Resumed ▶️",
+                f"{doc_name} is back. Serial #{w.token_number} — please be ready, now serving #{next_serial}.",
+                appointment_id=w.id,
+                metadata={"tokenNumber": w.token_number, "doctorName": doc_name, "nowServing": next_serial},
+            )
+
         return QueueResumeResponse(
             is_paused=False,
-            currently_serving_serial=3,
+            currently_serving_serial=next_serial,
             chamber_status="ACTIVE",
-            message="Queue resumed. Calling Serial #03 into chamber."
+            message=f"Queue resumed. Calling Serial #{next_serial:02d} into chamber." if next_serial else "Queue resumed. No patients waiting.",
         )

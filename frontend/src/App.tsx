@@ -12,6 +12,7 @@ import { DoctorOnboardingPage } from './features/admin/DoctorOnboardingPage';
 import { AdminPage } from './features/admin/AdminPage';
 import { DoctorProfilePage } from './features/doctors/DoctorProfilePage';
 import { LandingPage } from './features/landing/LandingPage';
+import { notificationService } from './features/notifications/services/notificationService';
 import { AuthModal } from './features/auth/components/AuthModal';
 import { ProfileModal } from './features/auth/components/ProfileModal';
 import { Doctor } from './features/doctors/types';
@@ -111,7 +112,31 @@ const AppContent: React.FC = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
-  const [unreadCount, setUnreadCount] = useState<number>(1);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  // Real unread badge: fetch on auth change + poll every 30s
+  const loadUnread = async () => {
+    if (!isAuthenticated) {
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const res = await notificationService.getNotifications({ page: 1, pageSize: 1 });
+      setUnreadCount(res?.unreadCount ?? 0);
+    } catch {
+      /* silent: badge stays at last known value */
+    }
+  };
+
+  useEffect(() => {
+    loadUnread();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const id = setInterval(loadUnread, 30000);
+    return () => clearInterval(id);
+  }, [isAuthenticated]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -249,7 +274,7 @@ const AppContent: React.FC = () => {
       <NotificationDrawer
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
-        onRefreshUnread={() => setUnreadCount(0)}
+        onUnreadChange={(n) => setUnreadCount(n)}
       />
 
       <AuthModal
