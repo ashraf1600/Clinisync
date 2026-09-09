@@ -64,20 +64,20 @@ export const SystemAnimation: React.FC = () => {
 
   return (
     <div
-      className="bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border border-white/10 max-w-md mx-auto anim-float-soft"
+      className="anim-float-soft"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
           {bn ? 'পুরো সিস্টেম এক নজরে' : 'Whole system at a glance'}
         </span>
-        <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-200">
+        <span className="flex items-center gap-1.5 bg-white/10 text-emerald-300 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-white/15 backdrop-blur">
           <span className="flex items-end gap-[2px] h-3">
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="w-[3px] rounded-full bg-emerald-500 origin-bottom"
+                className="w-[3px] rounded-full bg-emerald-400 origin-bottom"
                 style={{ height: '100%', animation: 'clinisync-eq 1s ease-in-out infinite', animationDelay: `${i * 0.2}s` }}
               />
             ))}
@@ -86,26 +86,26 @@ export const SystemAnimation: React.FC = () => {
         </span>
       </div>
 
-      {/* Serving banner */}
-      <div className="bg-gradient-to-br from-teal-700 to-slate-900 text-white rounded-2xl px-5 py-3 text-center mb-3">
+      {/* Serving number — blends into hero, no banner box */}
+      <div className="text-center mb-1">
         <span className="text-[10px] uppercase font-bold text-teal-300 tracking-widest block">
           {bn ? 'চলমান সিরিয়াল' : 'Now Serving'}
         </span>
-        <span key={serving} className="text-4xl font-black inline-block anim-serve-pop">#{serving}</span>
+        <span key={serving} className="text-6xl font-black text-white inline-block anim-serve-pop drop-shadow-[0_0_25px_rgba(20,184,166,0.45)]">#{serving}</span>
       </div>
 
-      {/* Scene: person + moving queue + doctor + chamber door */}
-      <div className="relative rounded-2xl bg-gradient-to-b from-slate-50 to-teal-50/60 border border-slate-100 overflow-hidden" style={{ height: 210 }}>
+      {/* Scene: transparent, blends with hero background */}
+      <div className="relative overflow-hidden" style={{ height: 210 }}>
         {/* queue track */}
         <div className="absolute left-24 right-24 top-7 h-12">
-          <div className="absolute left-0 right-0 top-1/2 border-t-2 border-dashed border-teal-300" />
+          <div className="absolute left-0 right-0 top-1/2 border-t-2 border-dashed border-teal-400/40" />
           {tokens.map((t, i) => (
             <span
               key={`${serving}-${t}-${i}`}
-              className={`anim-token-ride absolute top-1 w-11 h-11 rounded-xl flex items-center justify-center text-xs font-black shadow-md border-2 ${
+              className={`anim-token-ride absolute top-1 w-11 h-11 rounded-xl flex items-center justify-center text-xs font-black shadow-lg shadow-teal-500/20 border-2 ${
                 t === MY_SERIAL
                   ? 'bg-amber-500 text-white border-amber-300'
-                  : 'bg-white text-teal-800 border-teal-300'
+                  : 'bg-white text-teal-900 border-teal-200'
               }`}
               style={{ animationDelay: `${i * 1.2}s` }}
             >
@@ -116,7 +116,7 @@ export const SystemAnimation: React.FC = () => {
 
         {/* chamber door */}
         <div className="absolute right-2 top-4 bottom-16 w-[68px]">
-          <div className="anim-door-glow w-full h-full rounded-t-2xl bg-slate-800 border-2 border-slate-700 flex flex-col items-center pt-2">
+          <div className="anim-door-glow w-full h-full rounded-t-2xl bg-white/5 border-2 border-teal-400/40 backdrop-blur-sm flex flex-col items-center pt-2">
             <span className="text-[9px] font-black text-teal-300 tracking-wider">চেম্বার</span>
             <span className="mt-1 w-8 h-8 rounded-full bg-teal-500/20 border border-teal-400/50" />
           </div>
@@ -125,34 +125,34 @@ export const SystemAnimation: React.FC = () => {
         {/* doctor beside door */}
         <div className="absolute right-[76px] bottom-14 w-14">
           <DoctorFigure />
-          <p className="text-center text-[9px] font-extrabold text-slate-600 -mt-1">{bn ? 'ডাক্তার' : 'Doctor'}</p>
+          <p className="text-center text-[9px] font-extrabold text-slate-300 -mt-1">{bn ? 'ডাক্তার' : 'Doctor'}</p>
         </div>
 
         {/* patient with phone */}
         <div className="absolute left-2 bottom-1 w-24">
           <PersonWithPhone mine={MY_SERIAL} />
-          <p className="text-center text-[9px] font-extrabold text-teal-700 -mt-2">
+          <p className="text-center text-[9px] font-extrabold text-teal-300 -mt-2">
             {bn ? `আপনি · ≈${etaMin} মিনিট` : `You · ≈${etaMin} min`}
           </p>
         </div>
       </div>
 
-      {/* synced 3-phase captions */}
+      {/* synced 3-phase captions — glass pills */}
       <div className="mt-3 grid grid-cols-3 gap-2">
         {captions.map((c, i) => (
           <div
             key={c}
-            className={`text-center text-[10px] font-extrabold px-1 py-2 rounded-xl border transition-all ${
+            className={`text-center text-[10px] font-extrabold px-1 py-2 rounded-xl border transition-all backdrop-blur ${
               i === phase
-                ? 'bg-teal-700 text-white border-teal-700 shadow'
-                : 'bg-slate-50 text-slate-400 border-slate-100'
+                ? 'bg-teal-500 text-slate-950 border-teal-400 shadow-lg shadow-teal-500/30'
+                : 'bg-white/5 text-slate-400 border-white/10'
             }`}
           >
             {c}
           </div>
         ))}
       </div>
-      <p className="text-center text-[10px] text-slate-400 mt-2">
+      <p className="text-center text-[10px] text-slate-500 mt-2">
         {bn ? 'ডেমো অ্যানিমেশন — আসল কিউ প্রতি ১২ সেকেন্ডে আপডেট হয়' : 'Demo — the real queue updates every 12 seconds'}
       </p>
     </div>
