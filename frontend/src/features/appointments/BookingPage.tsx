@@ -565,6 +565,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
               {slots.map((s, idx) => {
                 const isSelected = selectedSlot?.startTime === s.startTime;
                 const timeLabel = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const durationMin = Math.max(1, Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000));
                 
                 return (
                   <button
@@ -592,7 +593,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
                     </div>
 
                     <div className="mt-2 pt-1.5 border-t border-current/10 flex items-center justify-between text-[11px]">
-                      <span className="opacity-80">30 min</span>
+                      <span className="opacity-80">{durationMin} min</span>
                       {!s.isAvailable ? (
                         <span className="font-bold uppercase text-[10px]">
                           {s.isPast ? (language === 'bn' ? 'সময় পার' : 'Passed') : (language === 'bn' ? 'বুক করা' : 'Booked')}

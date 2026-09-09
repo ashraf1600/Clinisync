@@ -18,6 +18,36 @@ def to_utc(dt: datetime) -> datetime:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
+
+try:
+    from zoneinfo import ZoneInfo
+    DHAKA_TZ = ZoneInfo("Asia/Dhaka")
+except Exception:
+    # Fallback for minimal containers without tzdata: fixed UTC+6 (no DST in Bangladesh)
+    DHAKA_TZ = timezone(timedelta(hours=6))
+
+
+def dhaka_wall_to_utc(target_date: date, t: time) -> datetime:
+    """Interpret a chamber wall-clock TIME on a Dhaka calendar date as UTC.
+
+    Chamber shift hours (e.g. 17:00-21:00) are stored as local wall-clock times.
+    The API contract returns UTC ISO timestamps, so convert Dhaka -> UTC here.
+    """
+    local_dt = datetime(
+        target_date.year, target_date.month, target_date.day,
+        t.hour, t.minute, t.second, tzinfo=DHAKA_TZ,
+    )
+    return local_dt.astimezone(timezone.utc)
+
+
+def dhaka_day_bounds_utc(target_date: date) -> tuple[datetime, datetime]:
+    """UTC window covering one full Dhaka calendar day [00:00, next 00:00)."""
+    start_local = datetime(
+        target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=DHAKA_TZ
+    )
+    start_utc = start_local.astimezone(timezone.utc)
+    return start_utc, start_utc + timedelta(days=1)
+
 class AvailabilityService:
     DAY_NAMES = {
         0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
@@ -91,9 +121,9 @@ class AvailabilityService:
         shifts = avail_res.scalars().all()
 
         # 4. Fetch booked appointments for this doctor on this day
+        # Use Dhaka-day boundaries so appointments are matched to the local calendar date
         from app.appointments.models import Appointment
-        start_of_day = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=timezone.utc)
-        end_of_day = start_of_day + timedelta(days=1)
+        start_of_day, end_of_day = dhaka_day_bounds_utc(target_date)
 
         appts_query = select(Appointment).where(
             and_(
@@ -138,11 +168,11 @@ class AvailabilityService:
                     slots=[]
                 )
 
-            # Generate sensible default 12-slot shift (17:00 - 21:00) only for unconfigured/demo doctors
+            # Generate sensible default 12-slot shift (17:00 - 21:00 Dhaka) only for unconfigured/demo doctors
             default_start = time(17, 0)
             default_end = time(21, 0)
-            current_time = datetime.combine(target_date, default_start, tzinfo=timezone.utc)
-            shift_end_dt = datetime.combine(target_date, default_end, tzinfo=timezone.utc)
+            current_time = dhaka_wall_to_utc(target_date, default_start)
+            shift_end_dt = dhaka_wall_to_utc(target_date, default_end)
 
             while current_time + timedelta(minutes=30) <= shift_end_dt:
                 slot_end = current_time + timedelta(minutes=30)
@@ -167,8 +197,8 @@ class AvailabilityService:
             for shift in effective_shifts:
                 primary_duration = shift.slot_duration_minutes
                 primary_buffer = shift.buffer_minutes
-                current_time = datetime.combine(target_date, shift.start_time, tzinfo=timezone.utc)
-                shift_end_dt = datetime.combine(target_date, shift.end_time, tzinfo=timezone.utc)
+                current_time = dhaka_wall_to_utc(target_date, shift.start_time)
+                shift_end_dt = dhaka_wall_to_utc(target_date, shift.end_time)
                 shift_loc = loc_map.get(shift.location_id) if shift.location_id else None
                 loc_name = shift_loc.facility_name if shift_loc else doctor.facility_name
                 loc_room = shift_loc.chamber_room if shift_loc else doctor.chamber_room
@@ -596,8 +626,12 @@ class AvailabilityService:
             exceptions_by_date = {}
 
         # 5. Load all booked appointments across the window in a single batch
-        start_dt_utc = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0, tzinfo=timezone.utc)
-        end_dt_utc = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc)
+        # Window covers full Dhaka calendar days (converted to UTC) so local-day
+        # appointments are never missed at the UTC midnight boundary.
+        day_start_utc, _ = dhaka_day_bounds_utc(start_date)
+        _, day_after_end_utc = dhaka_day_bounds_utc(end_date - timedelta(days=1))
+        start_dt_utc = day_start_utc
+        end_dt_utc = day_after_end_utc - timedelta(seconds=1)
 
         appts_query = select(Appointment).where(
             and_(
@@ -694,10 +728,11 @@ class AvailabilityService:
                 continue
 
             # Generate individual time slots for this day
+            # Shift TIME values are Dhaka wall-clock; convert to UTC for the API response
             day_slots: list[TimeSlot] = []
             for s in effective_day_shifts:
-                cur_slot_time = datetime.combine(cur_date, s.start_time, tzinfo=timezone.utc)
-                shift_end_dt = datetime.combine(cur_date, s.end_time, tzinfo=timezone.utc)
+                cur_slot_time = dhaka_wall_to_utc(cur_date, s.start_time)
+                shift_end_dt = dhaka_wall_to_utc(cur_date, s.end_time)
                 dur = s.slot_duration_minutes or 30
                 buf = s.buffer_minutes or 10
 
