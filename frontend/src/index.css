@@ -13,3 +13,47 @@ body {
   color: #0F172A;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ---------- CliniSync landing motion ---------- */
+@keyframes clinisync-serve-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  35% { transform: scale(1.12); opacity: 1; }
+  60% { transform: scale(1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes clinisync-row-in {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes clinisync-progress-fill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes clinisync-float-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes clinisync-fade-up {
+  from { transform: translateY(22px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes clinisync-eq {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+.anim-serve-pop { animation: clinisync-serve-pop 0.55s ease-out both; }
+.anim-row-in { animation: clinisync-row-in 0.45s ease-out both; }
+.anim-float-soft { animation: clinisync-float-soft 6s ease-in-out infinite; }
+.anim-fade-up { animation: clinisync-fade-up 0.7s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-serve-pop, .anim-row-in, .anim-float-soft, .anim-fade-up {
+    animation: none;
+  }
+}
