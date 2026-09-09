@@ -1,4 +1,5 @@
 name: Frontend CI/CD
+# CliniSync Frontend Automation
 
 on:
   push:
