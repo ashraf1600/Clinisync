@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiClient } from '../services/api';
+import { apiClient, registerAuthHandlers, clearAuthStorage } from '../services/api';
 
 export interface User {
   id: string;
@@ -43,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
     setToken(tokens.accessToken);
     localStorage.setItem('access_token', tokens.accessToken);
+    if (tokens.refreshToken) localStorage.setItem('refresh_token', tokens.refreshToken);
     localStorage.setItem('user_data', JSON.stringify(userData));
   };
 
@@ -60,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
     setToken(tokens.accessToken);
     localStorage.setItem('access_token', tokens.accessToken);
+    if (tokens.refreshToken) localStorage.setItem('refresh_token', tokens.refreshToken);
     localStorage.setItem('user_data', JSON.stringify(userData));
   };
 
@@ -75,9 +77,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_data');
+    clearAuthStorage();
   };
+
+  // Let the API layer renew an expired 15-min access token via the 7-day
+  // refresh token, and force a real logout when renewal is impossible.
+  useEffect(() => {
+    registerAuthHandlers({
+      getRefreshToken: () => localStorage.getItem('refresh_token'),
+      applyNewToken: (t) => setToken(t),
+      onAuthFailure: () => {
+        setUser(null);
+        setToken(null);
+      },
+    });
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, login, register, logout, updateUserData }}>
