@@ -394,8 +394,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
                     : schedule.sittingDays?.join(', ')}{' '}
                   · <span className="text-teal-400 font-extrabold">{schedule.sittingHours}</span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  {schedule.facilityName} {schedule.chamberRoom ? `· ${schedule.chamberRoom}` : ''}
+                <div className="text-[11px] text-teal-300/90 font-medium mt-0.5">
+                  📍 {selectedChamber?.facilityName || schedule.facilityName}{' '}
+                  {(selectedChamber?.chamberRoom || schedule.chamberRoom) ? `· ${selectedChamber?.chamberRoom || schedule.chamberRoom}` : ''}
+                  {selectedChamber?.branchArea ? ` (${selectedChamber.branchArea})` : ''}
                 </div>
               </div>
             </div>

@@ -519,7 +519,7 @@ class AvailabilityService:
         target_loc = loc_map.get(location_id) if location_id else None
         facility_name = target_loc.facility_name if target_loc else (doctor.facility_name or "Main Medical Chamber")
         chamber_room = target_loc.chamber_room if target_loc else doctor.chamber_room
-        fee = target_loc.consultation_fee if target_loc else (doctor.consultation_fee or 1000.0)
+        fee = float(doctor.consultation_fee) if doctor.consultation_fee else 1000.0
 
         # 2. Date range calculation (Asia/Dhaka UTC+6)
         dhaka_tz = timezone(timedelta(hours=6))
@@ -527,18 +527,37 @@ class AvailabilityService:
         start_date = from_date or now_local.date()
         end_date = start_date + timedelta(days=days_count)
 
-        # 3. Load active recurring shifts for this doctor
-        shift_query = select(Availability).where(
-            and_(
-                Availability.doctor_id == doctor_id,
-                Availability.is_active == True
-            )
-        )
+        # 3. Load active recurring shifts strictly for this doctor and chamber location
         if location_id:
-            shift_query = shift_query.where(or_(Availability.location_id == location_id, Availability.location_id == None))
-
-        shifts_res = await self.db.execute(shift_query)
-        shifts = shifts_res.scalars().all()
+            shift_query = select(Availability).where(
+                and_(
+                    Availability.doctor_id == doctor_id,
+                    Availability.location_id == location_id,
+                    Availability.is_active == True
+                )
+            )
+            shifts_res = await self.db.execute(shift_query)
+            shifts = shifts_res.scalars().all()
+            if not shifts:
+                # If no shifts tied specifically to this location ID, fallback to general shifts
+                shift_query = select(Availability).where(
+                    and_(
+                        Availability.doctor_id == doctor_id,
+                        Availability.location_id == None,
+                        Availability.is_active == True
+                    )
+                )
+                shifts_res = await self.db.execute(shift_query)
+                shifts = shifts_res.scalars().all()
+        else:
+            shift_query = select(Availability).where(
+                and_(
+                    Availability.doctor_id == doctor_id,
+                    Availability.is_active == True
+                )
+            )
+            shifts_res = await self.db.execute(shift_query)
+            shifts = shifts_res.scalars().all()
 
         has_custom_shifts = len(shifts) > 0
         shifts_by_dow: dict[int, list[Availability]] = {}
