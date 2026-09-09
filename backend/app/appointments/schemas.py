@@ -27,10 +27,14 @@ class AppointmentBookRequest(CamelModel):
 class AppointmentRead(CamelModel):
     id: uuid.UUID
     patient_id: uuid.UUID
+    patient_name: Optional[str] = None
     doctor_id: uuid.UUID
     location_id: Optional[uuid.UUID] = None
     doctor_name: str
     specialization: str
+    facility_name: Optional[str] = None
+    chamber_room: Optional[str] = None
+    branch_area: Optional[str] = None
     token_number: int
     start_time: datetime
     end_time: datetime

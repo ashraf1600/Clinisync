@@ -220,26 +220,44 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
             </p>
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2 text-xs text-slate-600 border border-slate-100">
-            <div className="flex justify-between">
+          <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2.5 text-xs text-slate-700 border border-slate-200 divide-y divide-slate-100">
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-slate-400">{language === 'bn' ? 'রোগীর নাম (Patient):' : 'Patient Name:'}</span>
+              <span className="font-extrabold text-slate-900">{user?.name || 'Registered Patient'}</span>
+            </div>
+            <div className="flex justify-between items-center pt-2">
               <span className="text-slate-400">{t('book.confirmed_doctor', 'Doctor:')}</span>
-              <span className="font-semibold text-slate-800">{confirmedToken.doctorName}</span>
+              <div className="text-right">
+                <span className="font-extrabold text-slate-900 block">{confirmedToken.doctorName}</span>
+                <span className="text-[10px] text-teal-700 font-bold">{currentDoctor?.specialization}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">{language === 'bn' ? 'চেম্বার ও শাখা:' : 'Chamber Location:'}</span>
-              <span className="font-extrabold text-blue-700">{confirmedToken.facilityName}</span>
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-slate-400">{language === 'bn' ? 'হাসপাতাল ও চেম্বার:' : 'Hospital / Chamber:'}</span>
+              <div className="text-right">
+                <span className="font-extrabold text-blue-700 block">{confirmedToken.facilityName}</span>
+                <span className="text-[10px] text-slate-600 font-semibold">{confirmedToken.chamberRoom}{confirmedToken.branchArea ? ` • ${confirmedToken.branchArea}` : ''}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">{language === 'bn' ? 'চেম্বার রুম:' : 'Chamber Room:'}</span>
-              <span className="font-semibold text-slate-800">{confirmedToken.chamberRoom}</span>
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-slate-400">{language === 'bn' ? 'সিরিয়াল নম্বর (Serial No):' : 'Serial No:'}</span>
+              <span className="font-black text-slate-900 bg-slate-200/70 px-2 py-0.5 rounded-lg text-sm">#{confirmedToken.tokenNumber}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">{t('book.confirmed_schedule', 'Schedule:')}</span>
-              <span className="font-semibold text-slate-800">
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-slate-400">{t('book.confirmed_schedule', 'Scheduled Date & Time:')}</span>
+              <span className="font-extrabold text-slate-800">
                 {new Date(confirmedToken.startTime).toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-slate-400">{language === 'bn' ? 'সিরিয়াল নেওয়ার সময় (Booked On):' : 'Booked On:'}</span>
+              <span className="font-semibold text-slate-700 text-[11px]">
+                {confirmedToken.createdAt
+                  ? new Date(confirmedToken.createdAt).toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
+                  : new Date().toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-2">
               <span className="text-slate-400">{t('book.confirmed_payment', 'Payment:')}</span>
               <span className="font-bold text-teal-700 uppercase">{t('book.confirmed_pay_at_chamber', 'Pay At Chamber')} (৳{confirmedToken.fee})</span>
             </div>

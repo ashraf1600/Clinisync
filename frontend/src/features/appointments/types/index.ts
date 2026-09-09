@@ -1,10 +1,14 @@
 export interface Appointment {
   id: string;
   patientId: string;
+  patientName?: string;
   doctorId: string;
   locationId?: string;
   doctorName: string;
   specialization: string;
+  facilityName?: string;
+  chamberRoom?: string;
+  branchArea?: string;
   tokenNumber: number;
   startTime: string;
   endTime: string;

@@ -16,7 +16,8 @@ import {
   Stethoscope,
   Phone,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  User
 } from 'lucide-react';
 import { appointmentService } from './services/appointmentService';
 import { Appointment, DoctorQueueResponse } from './types';
@@ -357,31 +358,88 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
               </div>
 
               {/* Slip Summary Info */}
-              <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2 border border-slate-100 text-xs mb-5">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Patient Name:</span>
-                  <span className="font-bold text-slate-900">{user?.name || 'Registered Patient'}</span>
+              <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2.5 border border-slate-200/80 text-xs mb-5 divide-y divide-slate-100">
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <User className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'রোগীর নাম (Patient):' : 'Patient Name:'}
+                  </span>
+                  <span className="font-extrabold text-slate-900">{selectedPass.patientName || user?.name || 'Registered Patient'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Scheduled Date:</span>
-                  <span className="font-bold text-slate-800">
-                    {new Date(selectedPass.startTime).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <Stethoscope className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'চিকিৎসক (Doctor):' : 'Doctor Name:'}
+                  </span>
+                  <div className="text-right">
+                    <span className="font-extrabold text-slate-900 block">{selectedPass.doctorName}</span>
+                    <span className="text-[10px] text-teal-700 font-bold">{selectedPass.specialization}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'হাসপাতাল ও চেম্বার:' : 'Hospital / Chamber:'}
+                  </span>
+                  <div className="text-right">
+                    <span className="font-extrabold text-blue-700 block">{selectedPass.facilityName || 'Popular Diagnostic Centre'}</span>
+                    <span className="text-[10px] text-slate-600 font-semibold">{selectedPass.chamberRoom || 'Room #402, Level 4'}{selectedPass.branchArea ? ` • ${selectedPass.branchArea}` : ''}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <Ticket className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'সিরিয়াল নম্বর (Serial No):' : 'Serial No:'}
+                  </span>
+                  <span className="font-black text-slate-900 text-sm bg-slate-200/70 px-2 py-0.5 rounded-lg">#{selectedPass.tokenNumber}</span>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'অ্যাপয়েন্টমেন্টের তারিখ:' : 'Scheduled Date:'}
+                  </span>
+                  <span className="font-extrabold text-slate-800">
+                    {new Date(selectedPass.startTime).toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Time Slot:</span>
-                  <span className="font-bold text-slate-800">
-                    {new Date(selectedPass.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'নির্ধারিত সময় (Slot Time):' : 'Slot Time:'}
+                  </span>
+                  <span className="font-extrabold text-slate-800">
+                    {new Date(selectedPass.startTime).toLocaleTimeString(language === 'bn' ? 'bn-BD' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Consultation Fee:</span>
-                  <span className="font-extrabold text-teal-700">৳{selectedPass.fee || 1000}</span>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> {language === 'bn' ? 'সিরিয়াল নেওয়ার সময় (Booked On):' : 'Booked On:'}
+                  </span>
+                  <span className="font-semibold text-slate-700 text-[11px]">
+                    {selectedPass.createdAt
+                      ? new Date(selectedPass.createdAt).toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
+                      : 'Recently Booked'}
+                  </span>
                 </div>
-                <div className="flex justify-between border-t border-slate-200 pt-1.5">
-                  <span className="text-slate-400">Payment Mode:</span>
-                  <span className="font-black text-amber-700 uppercase text-[10px]">PAY AT CHAMBER</span>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 font-medium">{language === 'bn' ? 'ভিজিট ফি (Consultation Fee):' : 'Consultation Fee:'}</span>
+                  <span className="font-black text-teal-700 text-sm">৳{selectedPass.fee || 1000}</span>
                 </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-slate-500 font-medium">{language === 'bn' ? 'পেমেন্ট মাধ্যম (Payment Mode):' : 'Payment Mode:'}</span>
+                  <span className="font-black text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded text-[10px] tracking-wide uppercase">
+                    {language === 'bn' ? 'চেম্বারে নগদ প্রদান' : 'PAY AT CHAMBER'}
+                  </span>
+                </div>
+
+                {selectedPass.id && (
+                  <div className="flex justify-between items-center pt-2 text-[10px] text-slate-400 font-mono">
+                    <span>Tracking Ref:</span>
+                    <span>{selectedPass.id.slice(0, 13).toUpperCase()}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-3">

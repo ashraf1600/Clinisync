@@ -123,14 +123,26 @@ class AppointmentService:
 
         doc_name = doctor.user.name if (doctor and doctor.user) else "Doctor"
         doc_fee = float(doctor.consultation_fee) if doctor.consultation_fee else 1000.0
+        fac_name = location.facility_name if location else (doctor.facility_name if doctor else "Popular Diagnostic Centre")
+        room_name = location.chamber_room if location else (doctor.chamber_room if doctor else "Room #402, Level 4")
+        branch_name = location.branch_area if location else None
+
+        # Fetch patient user for name
+        patient_res = await self.db.execute(select(User).where(User.id == patient_id))
+        patient_user = patient_res.scalar_one_or_none()
+        patient_name = patient_user.name if patient_user else None
 
         return AppointmentRead(
             id=appt.id,
             patient_id=appt.patient_id,
+            patient_name=patient_name,
             doctor_id=appt.doctor_id,
             location_id=appt.location_id,
             doctor_name=doc_name,
             specialization=doctor.specialization,
+            facility_name=fac_name,
+            chamber_room=room_name,
+            branch_area=branch_name,
             token_number=appt.token_number,
             start_time=appt.start_time,
             end_time=appt.end_time,
@@ -173,12 +185,21 @@ class AppointmentService:
         await self.db.commit()
         await self.db.refresh(appt)
 
+        fac_name = appt.location.facility_name if appt.location else (appt.doctor.facility_name if appt.doctor else "Popular Diagnostic Centre")
+        room_name = appt.location.chamber_room if appt.location else (appt.doctor.chamber_room if appt.doctor else "Room #402, Level 4")
+        branch_name = appt.location.branch_area if appt.location else None
+
         return AppointmentRead(
             id=appt.id,
             patient_id=appt.patient_id,
+            patient_name=appt.patient.name if appt.patient else None,
             doctor_id=appt.doctor_id,
+            location_id=appt.location_id,
             doctor_name=appt.doctor.user.name if appt.doctor and appt.doctor.user else "Doctor",
             specialization=appt.doctor.specialization if appt.doctor else "General",
+            facility_name=fac_name,
+            chamber_room=room_name,
+            branch_area=branch_name,
             token_number=appt.token_number,
             start_time=appt.start_time,
             end_time=appt.end_time,
@@ -369,10 +390,14 @@ class AppointmentService:
             AppointmentRead(
                 id=a.id,
                 patient_id=a.patient_id,
+                patient_name=a.patient.name if a.patient else None,
                 doctor_id=a.doctor_id,
                 location_id=a.location_id,
                 doctor_name=a.doctor.user.name if a.doctor and a.doctor.user else "Doctor",
                 specialization=a.doctor.specialization if a.doctor else "General",
+                facility_name=a.location.facility_name if a.location else (a.doctor.facility_name if a.doctor else "Popular Diagnostic Centre"),
+                chamber_room=a.location.chamber_room if a.location else (a.doctor.chamber_room if a.doctor else "Room #402, Level 4"),
+                branch_area=a.location.branch_area if a.location else None,
                 token_number=a.token_number,
                 start_time=a.start_time,
                 end_time=a.end_time,
