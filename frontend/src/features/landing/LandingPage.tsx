@@ -20,31 +20,15 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { SystemAnimation } from './SystemAnimation';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
 }
 
-// Simulated live chamber: serving serial ticks forward like the real tracker
-const SERVE_CYCLE = [7, 8, 9];
-const MY_SERIAL = 10;
-const MIN_PER_PATIENT = 15;
-
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const { language } = useLanguage();
   const bn = language === 'bn';
-
-  // Ticking LIVE demo
-  const [serveIdx, setServeIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  useEffect(() => {
-    if (paused) return;
-    const id = setInterval(() => setServeIdx((i) => (i + 1) % SERVE_CYCLE.length), 3000);
-    return () => clearInterval(id);
-  }, [paused]);
-  const serving = SERVE_CYCLE[serveIdx];
-  const upcomingRows = [serving + 1, serving + 2, MY_SERIAL];
-  const etaMin = Math.max(5, (MY_SERIAL - serving) * MIN_PER_PATIENT);
 
   // Auto-cycling 3 steps
   const [activeStep, setActiveStep] = useState(0);
@@ -187,61 +171,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* LIVE demo card — serving serial ticks forward every 3s */}
           <div className="relative anim-fade-up" style={{ animationDelay: '0.15s' }}>
-            <div
-              className="bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border border-white/10 max-w-md mx-auto anim-float-soft"
-              onMouseEnter={() => setPaused(true)}
-              onMouseLeave={() => setPaused(false)}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                  {bn ? 'লাইভ চেম্বার' : 'Live Chamber'}
-                </span>
-                <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-emerald-200">
-                  {/* equalizer bars */}
-                  <span className="flex items-end gap-[2px] h-3">
-                    {[0, 1, 2].map((i) => (
-                      <span
-                        key={i}
-                        className="w-[3px] rounded-full bg-emerald-500 origin-bottom"
-                        style={{ height: '100%', animation: 'clinisync-eq 1s ease-in-out infinite', animationDelay: `${i * 0.2}s` }}
-                      />
-                    ))}
-                  </span>
-                  LIVE
-                </span>
-              </div>
-              <div className="bg-gradient-to-br from-teal-700 to-slate-900 text-white rounded-2xl p-5 text-center overflow-hidden">
-                <span className="text-[10px] uppercase font-bold text-teal-300 tracking-widest">
-                  {bn ? 'চলমান সিরিয়াল' : 'Now Serving'}
-                </span>
-                <div key={serving} className="text-6xl font-black my-1 anim-serve-pop">#{serving}</div>
-                <span className="text-xs text-teal-200 font-semibold">
-                  {bn ? `আপনার সিরিয়াল #${MY_SERIAL} · আনুমানিক ${etaMin} মিনিট` : `Your serial #${MY_SERIAL} · approx. ${etaMin} min`}
-                </span>
-              </div>
-              <div className="mt-4 space-y-2">
-                {upcomingRows.map((s, idx) => {
-                  const mine = s === MY_SERIAL;
-                  return (
-                    <div
-                      key={`${serving}-${s}`}
-                      className={`flex items-center justify-between p-3 rounded-xl border anim-row-in ${mine ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-100'}`}
-                      style={{ animationDelay: `${idx * 0.12}s` }}
-                    >
-                      <span className="font-black text-sm text-slate-800">#{s}</span>
-                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${mine ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                        {mine ? (bn ? 'আপনার সিরিয়াল' : 'YOURS') : (bn ? 'অপেক্ষমাণ' : 'WAITING')}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-center text-[10px] text-slate-400 mt-3">
-                {bn ? 'ডেমো অ্যানিমেশন — আসল কিউ প্রতি ১২ সেকেন্ডে আপডেট হয়' : 'Demo animation — the real queue updates every 12 seconds'}
-              </p>
-            </div>
+            <SystemAnimation />
           </div>
         </div>
 

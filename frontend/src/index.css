@@ -47,13 +47,36 @@ body {
   50% { transform: scaleY(1); }
 }
 
+@keyframes clinisync-token-ride {
+  0% { left: 0; opacity: 0; transform: scale(0.75); }
+  12% { opacity: 1; transform: scale(1); }
+  68% { left: calc(100% - 56px); opacity: 1; transform: scale(1); }
+  82% { left: calc(100% - 44px); opacity: 0; transform: scale(0.6); }
+  100% { left: 0; opacity: 0; transform: scale(0.75); }
+}
+
+@keyframes clinisync-door-glow {
+  0%, 55% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+  70%, 80% { box-shadow: 0 0 24px 6px rgba(20, 184, 166, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+}
+
+@keyframes clinisync-phone-bob {
+  0%, 100% { transform: rotate(-2deg) translateY(0); }
+  50% { transform: rotate(2deg) translateY(-4px); }
+}
+
 .anim-serve-pop { animation: clinisync-serve-pop 0.55s ease-out both; }
 .anim-row-in { animation: clinisync-row-in 0.45s ease-out both; }
 .anim-float-soft { animation: clinisync-float-soft 6s ease-in-out infinite; }
 .anim-fade-up { animation: clinisync-fade-up 0.7s ease-out both; }
+.anim-token-ride { animation: clinisync-token-ride 3.6s ease-in-out infinite; }
+.anim-door-glow { animation: clinisync-door-glow 3.6s ease-in-out infinite; }
+.anim-phone-bob { animation: clinisync-phone-bob 3s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-serve-pop, .anim-row-in, .anim-float-soft, .anim-fade-up {
+  .anim-serve-pop, .anim-row-in, .anim-float-soft, .anim-fade-up,
+  .anim-token-ride, .anim-door-glow, .anim-phone-bob {
     animation: none;
   }
 }
