@@ -13,9 +13,16 @@ import app.appointments.models  # noqa
 import app.notifications.models  # noqa
 import app.admin.models  # noqa
 
+from sqlalchemy import text
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_db():
     async with engine.begin() as conn:
+        try:
+            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'))
+            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "btree_gist";'))
+        except Exception as e:
+            print("Extension creation note:", e)
         await conn.run_sync(Base.metadata.create_all)
     yield
 
