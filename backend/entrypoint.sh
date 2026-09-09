@@ -12,5 +12,11 @@ if [ "$RUN_MIGRATIONS" != "false" ]; then
     }
 fi
 
-echo "Starting Uvicorn ASGI server..."
-exec "$@"
+PORT="${PORT:-8000}"
+echo "Starting Uvicorn ASGI server on port ${PORT}..."
+
+if [ "$#" -eq 0 ] || [ "$1" = "uvicorn" ]; then
+    exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --workers 2
+else
+    exec "$@"
+fi
