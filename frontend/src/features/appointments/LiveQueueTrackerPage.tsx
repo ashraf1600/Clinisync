@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { doctorService } from '../doctors/services/doctorService';
 import { appointmentService } from './services/appointmentService';
+import { availabilityService } from '../availability/services/availabilityService';
 import { Doctor } from '../doctors/types';
 import { DoctorQueueResponse, Appointment } from './types';
 import { DoctorAvatar } from '../../components/DoctorAvatar';
@@ -61,6 +62,22 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
   // Tracked queue date: today by default; jumps to the user's serial day for future bookings
   const [trackDate, setTrackDate] = useState<string>(todayStr);
   const isFutureTrack = trackDate !== todayStr;
+
+  // Per-day availability for the strip (one schedule call per doctor)
+  const [dayAvail, setDayAvail] = useState<Record<string, { free: number; total: number; hasShift: boolean }>>({});
+
+  const loadDayAvailability = async (docId: string) => {
+    try {
+      const sched = await availabilityService.getDoctorSchedule(docId, 7, todayStr, undefined);
+      const map: Record<string, { free: number; total: number; hasShift: boolean }> = {};
+      for (const d of sched.days || []) {
+        map[d.date] = { free: d.availableSlotsCount || 0, total: d.totalSlots || 0, hasShift: !!d.hasShift };
+      }
+      setDayAvail(map);
+    } catch {
+      setDayAvail({});
+    }
+  };
 
   // Dynamic live chamber queue for the selected doctor
   const [queueData, setQueueData] = useState<DoctorQueueResponse | null>(null);
@@ -120,7 +137,9 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
   useEffect(() => {
     if (selectedDoctorId) {
       setTrackDate(todayStr);
+      setDayAvail({});
       fetchDoctorQueue(selectedDoctorId, todayStr, true);
+      loadDayAvailability(selectedDoctorId);
     }
   }, [selectedDoctorId]);
 
@@ -171,6 +190,15 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
   // "Mine" matched by appointment id (token numbers repeat across days)
   const myQueueItem = myApptForDoctor ? queueItems.find((i) => i.id === myApptForDoctor.id) : undefined;
   const mySerial = myQueueItem?.serial ?? myQueueItem?.tokenNumber ?? myApptForDoctor?.tokenNumber;
+
+  // Queue progress + my line position (eye-visible "X of Y")
+  const doneCount = queueItems.filter((i) => i.status === 'completed').length;
+  const progressPct = totalAppts > 0 ? Math.round((doneCount / totalAppts) * 100) : 0;
+  const activeItems = queueItems.filter((i) => i.status !== 'completed' && i.status !== 'cancelled');
+  const myPosition =
+    mySerial != null && myQueueItem && myQueueItem.status !== 'completed' && myQueueItem.status !== 'cancelled'
+      ? activeItems.filter((i) => (i.serial ?? i.tokenNumber ?? 0) < mySerial).length + 1
+      : null;
 
   // Avg consultation minutes derived from real slot durations (fallback 15)
   const avgSlotMin = (() => {
@@ -454,32 +482,50 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                   {language === 'bn' ? '📅 দিন বেছে সিরিয়াল তালিকা দেখুন' : 'Browse serial list by day'}
                 </span>
-                <div className="flex space-x-2 overflow-x-auto pb-1">
+                <div className="flex space-x-2.5 overflow-x-auto pb-2">
                   {stripDays.map((d) => {
                     const isSel = trackDate === d;
                     const isMine = myApptDate === d;
                     const isToday = d === todayStr;
+                    const info = dayAvail[d];
                     return (
                       <button
                         key={d}
                         onClick={() => jumpToDate(d)}
-                        className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition border cursor-pointer flex flex-col items-center min-w-[86px] ${
+                        className={`shrink-0 px-4 py-3 rounded-2xl text-center transition border cursor-pointer flex flex-col items-center justify-center min-w-[104px] shadow-sm ${
                           isSel
                             ? isMine
-                              ? 'bg-amber-500 text-white border-amber-500 shadow'
-                              : 'bg-slate-900 text-white border-slate-900 shadow'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                              ? 'bg-amber-500 text-white border-amber-500 ring-2 ring-amber-300'
+                              : 'bg-slate-900 text-white border-slate-900 ring-2 ring-teal-400'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400 hover:bg-teal-50/50'
                         }`}
                       >
-                        <span className="text-[10px] uppercase opacity-80">
-                          {isToday ? (language === 'bn' ? 'আজ' : 'Today') : fmtDay(d).split(' ').slice(0, 1)}
+                        <span className={`text-[11px] font-extrabold uppercase tracking-wide ${isSel ? 'text-white/80' : 'text-slate-400'}`}>
+                          {isToday ? (language === 'bn' ? 'আজ' : 'Today') : fmtDay(d).split(' ')[0]}
                         </span>
-                        <span>{isToday ? fmtDay(d) : fmtDay(d)}</span>
-                        {isMine && (
-                          <span className={`text-[9px] font-extrabold px-1.5 rounded-full mt-0.5 ${isSel ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'}`}>
-                            {language === 'bn' ? 'আমার সিরিয়াল' : 'MY SERIAL'}
-                          </span>
-                        )}
+                        <span className="text-sm font-black mt-0.5">{fmtDay(d)}</span>
+                        <span className="mt-1.5 flex items-center gap-1">
+                          {isMine && (
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${isSel ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
+                              {language === 'bn' ? 'আমার সিরিয়াল' : 'MY SERIAL'}
+                            </span>
+                          )}
+                          {info && (
+                            info.free > 0 ? (
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${isSel ? 'bg-emerald-400/30 text-white border border-white/30' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                                {info.free} {language === 'bn' ? 'ফাঁকা' : 'open'}
+                              </span>
+                            ) : info.hasShift ? (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSel ? 'bg-red-400/30 text-white border border-white/30' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                                {language === 'bn' ? 'পূর্ণ' : 'Full'}
+                              </span>
+                            ) : (
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isSel ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                {language === 'bn' ? 'বন্ধ' : 'Off'}
+                              </span>
+                            )
+                          )}
+                        </span>
                       </button>
                     );
                   })}
@@ -602,6 +648,19 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                             : (language === 'bn' ? 'পরামর্শ চলছে (In Chamber)' : 'In Consultation')}
                         </span>
                       </div>
+
+                      {/* Day progress: completed share of all serials */}
+                      {!isFutureTrack && totalAppts > 0 && (
+                        <div className="mt-3">
+                          <div className="flex justify-between text-[10px] font-bold text-teal-200 mb-1">
+                            <span>{language === 'bn' ? `অগ্রগতি ${doneCount}/${totalAppts}` : `Progress ${doneCount}/${totalAppts}`}</span>
+                            <span>{progressPct}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-white/15 overflow-hidden">
+                            <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 transition-all" style={{ width: `${progressPct}%` }} />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Waiting / Booked Count */}
@@ -679,7 +738,7 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                         return (
                           <div
                             key={item.id}
-                            className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
+                            className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                               isCurrent
                                 ? 'bg-teal-50/90 border-teal-500 shadow-sm ring-2 ring-teal-500/20'
                                 : isMyToken
@@ -689,10 +748,10 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                                 : 'bg-white border-slate-200 hover:border-slate-300'
                             }`}
                           >
-                            <div className="flex items-center space-x-3.5">
-                              {/* Serial Badge */}
+                            <div className="flex items-center space-x-4">
+                              {/* Serial Badge — large, high-contrast */}
                               <div
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
+                                className={`w-[52px] h-[52px] rounded-2xl flex items-center justify-center font-black text-lg shrink-0 ${
                                   isCurrent
                                     ? 'bg-teal-700 text-white shadow'
                                     : isMyToken
@@ -706,17 +765,22 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                               </div>
 
                               <div>
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-bold text-xs text-slate-900">
+                                <div className="flex items-center space-x-2 flex-wrap">
+                                  <span className="font-extrabold text-sm text-slate-900">
                                     {isMyToken ? (language === 'bn' ? 'আপনি (Your Serial)' : 'You (Your Serial)') : item.patientName}
                                   </span>
                                   {isMyToken && (
-                                    <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-300">
                                       MY PASS
                                     </span>
                                   )}
+                                  {isMyToken && myPosition != null && (
+                                    <span className="bg-slate-900 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                                      {language === 'bn' ? `লাইনে ${myPosition}/${activeItems.length}` : `#${myPosition} of ${activeItems.length} in line`}
+                                    </span>
+                                  )}
                                 </div>
-                                <p className="text-[11px] text-slate-400 font-medium">
+                                <p className="text-xs text-slate-500 font-semibold mt-0.5">
                                   {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {item.visitType === 'followup' ? (language === 'bn' ? 'ফলো-আপ' : 'Followup') : (language === 'bn' ? 'নতুন রোগী' : 'New Patient')}
                                   {aheadForRow != null && aheadForRow > 0 && !isDone && (
                                     <span className="font-bold text-teal-700">
