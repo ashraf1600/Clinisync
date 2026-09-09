@@ -97,16 +97,6 @@ class AppointmentService:
         )
         self.db.add(appt)
 
-        # 5. Add notification record for patient
-        notif = Notification(
-            user_id=patient_id,
-            title="Appointment Confirmed! 🎫",
-            body=f"Serial #{next_token:02d} assigned with {doctor.user.name if doctor.user else 'Doctor'} for {data.start_time.strftime('%b %d')}.",
-            notification_type="booking_confirmed",
-            metadata={"tokenNumber": next_token, "doctorName": doctor.user.name if doctor.user else "Doctor"}
-        )
-        self.db.add(notif)
-
         try:
             await self.db.commit()
             await self.db.refresh(appt)
@@ -114,19 +104,39 @@ class AppointmentService:
             await self.db.rollback()
             raise SlotConflictException("The selected appointment slot has just been booked. Please select another slot.")
 
+        # 5. Add notification record for patient (fail-safe)
+        try:
+            doc_user_name = doctor.user.name if (doctor and doctor.user) else "Doctor"
+            notif = Notification(
+                user_id=patient_id,
+                appointment_id=appt.id,
+                title="Appointment Confirmed! 🎫",
+                body=f"Serial #{next_token:02d} assigned with {doc_user_name} for {data.start_time.strftime('%b %d')}.",
+                notification_type="booking_confirmed",
+                metadata_={"tokenNumber": next_token, "doctorName": doc_user_name}
+            )
+            self.db.add(notif)
+            await self.db.commit()
+        except Exception:
+            # Notification is non-blocking; the appointment is already safely secured
+            await self.db.rollback()
+
+        doc_name = doctor.user.name if (doctor and doctor.user) else "Doctor"
+        doc_fee = float(doctor.consultation_fee) if doctor.consultation_fee else 1000.0
+
         return AppointmentRead(
             id=appt.id,
             patient_id=appt.patient_id,
             doctor_id=appt.doctor_id,
             location_id=appt.location_id,
-            doctor_name=doctor.user.name if doctor.user else "Doctor",
+            doctor_name=doc_name,
             specialization=doctor.specialization,
             token_number=appt.token_number,
             start_time=appt.start_time,
             end_time=appt.end_time,
             status=appt.status,
             payment_status=appt.payment_status,
-            fee=float(doctor.consultation_fee),
+            fee=doc_fee,
             chief_complaint=appt.chief_complaint,
             created_at=appt.created_at
         )
