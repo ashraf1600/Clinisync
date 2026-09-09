@@ -117,6 +117,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Determine ECR Image URI
+        id: ecr-meta
+        run: |
+          RAW_REPO="${{ secrets.ECR_REPOSITORY }}"
+          if [ -z "$RAW_REPO" ]; then
+            RAW_REPO="clinisync-backend"
+          fi
+          REPO_NAME="${RAW_REPO##*/}"
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          echo "image_uri=$REGISTRY/$REPO_NAME" >> $GITHUB_OUTPUT
+
       - name: Build and Push Docker Image to ECR
         uses: docker/build-push-action@v5
         with:
@@ -124,8 +135,8 @@ jobs:
           file: ./backend/Dockerfile.prod
           push: true
           tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY || 'clinisync-backend' }}:${{ github.sha }}
-            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY || 'clinisync-backend' }}:latest
+            ${{ steps.ecr-meta.outputs.image_uri }}:${{ github.sha }}
+            ${{ steps.ecr-meta.outputs.image_uri }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
