@@ -11,6 +11,7 @@ import { ScheduleManagerPage } from './features/availability/ScheduleManagerPage
 import { DoctorOnboardingPage } from './features/admin/DoctorOnboardingPage';
 import { AdminPage } from './features/admin/AdminPage';
 import { DoctorProfilePage } from './features/doctors/DoctorProfilePage';
+import { LandingPage } from './features/landing/LandingPage';
 import { AuthModal } from './features/auth/components/AuthModal';
 import { ProfileModal } from './features/auth/components/ProfileModal';
 import { Doctor } from './features/doctors/types';
@@ -91,7 +92,7 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
   return <>{children}</>;
 };
 
-const validTabs = ['doctors', 'book', 'live-tracker', 'my-appointments', 'chamber', 'schedule', 'doctor-profile', 'onboarding', 'admin'];
+const validTabs = ['home', 'doctors', 'book', 'live-tracker', 'my-appointments', 'chamber', 'schedule', 'doctor-profile', 'onboarding', 'admin'];
 
 const getInitialTab = (): string => {
   if (typeof window !== 'undefined') {
@@ -100,7 +101,7 @@ const getInitialTab = (): string => {
       return hash;
     }
   }
-  return 'doctors';
+  return 'home';
 };
 
 const AppContent: React.FC = () => {
@@ -128,10 +129,10 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  // Default redirect when switching roles only if starting from default 'doctors' tab
+  // Default redirect when switching roles only if landing on home with no deep link
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (!window.location.hash || window.location.hash === '#doctors') {
+      if (!window.location.hash || window.location.hash === '#home') {
         if (user.role === 'doctor') {
           handleTabChange('chamber');
         } else if (user.role === 'admin') {
@@ -158,6 +159,10 @@ const AppContent: React.FC = () => {
       />
 
       <main className="flex-1">
+        {activeTab === 'home' && (
+          <LandingPage onNavigate={handleTabChange} />
+        )}
+
         {activeTab === 'doctors' && (
           <DoctorsPage onSelectDoctorForBooking={handleSelectDoctor} />
         )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stethoscope, Calendar, Clock, Bell, Shield, User as UserIcon, LogOut, UserPlus, Zap, Activity } from 'lucide-react';
+import { Home, Stethoscope, Calendar, Clock, Bell, Shield, User as UserIcon, LogOut, UserPlus, Zap, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -28,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (!isAuthenticated || !user) {
       // Guest: Clear, useful, and distinct patient buttons (no redundant booking tab, no admin portal)
       return [
+        { id: 'home', label: t('nav.home', 'Home'), icon: Home },
         { id: 'doctors', label: t('nav.doctors_book', 'Find Doctor & Book'), icon: Stethoscope },
         { id: 'live-tracker', label: t('nav.live_tracker', 'Live Token Tracker'), icon: Activity },
         { id: 'my-appointments', label: t('nav.my_bookings', 'My Bookings & Pass'), icon: Clock },
@@ -36,6 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
     if (user.role === 'patient') {
       return [
+        { id: 'home', label: t('nav.home', 'Home'), icon: Home },
         { id: 'doctors', label: t('nav.doctors_book', 'Find Doctor & Book'), icon: Stethoscope },
         { id: 'live-tracker', label: t('nav.live_tracker', 'Live Token Tracker'), icon: Activity },
         { id: 'my-appointments', label: t('nav.my_bookings', 'My Bookings & Pass'), icon: Clock },
@@ -62,6 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
 
     return [
+      { id: 'home', label: t('nav.home', 'Home'), icon: Home },
       { id: 'doctors', label: t('nav.doctors_book', 'Find Doctor & Book'), icon: Stethoscope },
       { id: 'live-tracker', label: t('nav.live_tracker', 'Live Token Tracker'), icon: Activity },
     ];
@@ -75,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand */}
         <div
           className="flex items-center space-x-3 cursor-pointer"
-          onClick={() => setActiveTab(isAuthenticated && user?.role === 'doctor' ? 'chamber' : isAuthenticated && user?.role === 'admin' ? 'admin' : 'doctors')}
+          onClick={() => setActiveTab(isAuthenticated && user?.role === 'doctor' ? 'chamber' : isAuthenticated && user?.role === 'admin' ? 'admin' : 'home')}
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-teal-500 flex items-center justify-center font-black text-xl shadow-lg">
             🩺

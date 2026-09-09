@@ -12,6 +12,7 @@ interface LanguageContextType {
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Navigation
+    'nav.home': 'Home',
     'nav.specialists': 'Specialists',
     'nav.book': 'Book Visit',
     'nav.doctors_book': 'Find Doctor & Book',
@@ -149,6 +150,7 @@ const translations: Record<Language, Record<string, string>> = {
   },
   bn: {
     // Navigation
+    'nav.home': 'হোম',
     'nav.specialists': 'বিশেষজ্ঞ চিকিৎসক',
     'nav.book': 'সিরিয়াল বুকিং',
     'nav.doctors_book': 'ডাক্তার খুঁজুন ও বুকিং',
