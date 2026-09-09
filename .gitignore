@@ -26,6 +26,7 @@ backend/.env
 .env
 .env.local
 .env.production
+!frontend/.env.production
 
 # Flutter / Dart
 mobile/.dart_tool/
