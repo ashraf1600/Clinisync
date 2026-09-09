@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.availability.schemas import (
     DoctorDayAvailabilityResponse, RecurringShiftsUpdateRequest,
     ExceptionCreateRequest, ExceptionRead, BulkGenerateRequest, BulkGenerateResponse,
-    ChamberShiftRead, ChamberShiftCreate
+    ChamberShiftRead, ChamberShiftCreate, DoctorMultiDayScheduleResponse
 )
 from app.availability.service import AvailabilityService
 from app.users.models import User
@@ -15,6 +15,17 @@ from app.users.dependencies import get_current_user
 from app.availability.dependencies import require_doctor_or_admin
 
 router = APIRouter(prefix="/availability", tags=["Availability & Shifts"])
+
+@router.get("/{doctorId}/schedule", response_model=DoctorMultiDayScheduleResponse, status_code=status.HTTP_200_OK)
+async def get_doctor_multi_day_schedule(
+    doctorId: uuid.UUID,
+    days: int = Query(14, ge=1, le=30, description="Number of upcoming days to load"),
+    from_date: Optional[date] = Query(None, alias="fromDate", description="Starting calendar date YYYY-MM-DD (defaults to today)"),
+    location_id: Optional[uuid.UUID] = Query(None, alias="locationId", description="Filter slots by chamber location"),
+    db: AsyncSession = Depends(get_db)
+):
+    service = AvailabilityService(db)
+    return await service.get_multi_day_schedule(doctorId, from_date, days, location_id)
 
 @router.get("/{doctorId}", response_model=DoctorDayAvailabilityResponse, status_code=status.HTTP_200_OK)
 async def get_doctor_availability(

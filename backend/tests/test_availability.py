@@ -132,3 +132,35 @@ async def test_admin_create_doctor_chamber_location(client: AsyncClient):
     assert shifts[0]["facilityName"] == "United Hospital Dhaka"
     assert shifts[0]["chamberRoom"] == "Room #512"
 
+
+@pytest.mark.asyncio
+async def test_doctor_multi_day_schedule(client: AsyncClient):
+    # Fetch doctor
+    docs_res = await client.get("/api/v1/doctors")
+    assert docs_res.status_code == 200
+    doctor_id = docs_res.json()["items"][0]["id"]
+
+    # Query 14-day schedule
+    schedule_res = await client.get(f"/api/v1/availability/{doctor_id}/schedule?days=14")
+    assert schedule_res.status_code == 200
+    data = schedule_res.json()
+
+    assert data["doctorId"] == doctor_id
+    assert "sittingDays" in data
+    assert "sittingHours" in data
+    assert "days" in data
+    assert len(data["days"]) == 14
+
+    # Verify first day format
+    first_day = data["days"][0]
+    assert "date" in first_day
+    assert "dayName" in first_day
+    assert "dayNameBn" in first_day
+    assert "isToday" in first_day
+    assert first_day["isToday"] is True
+    assert "slots" in first_day
+    assert "availableCount" in first_day
+    assert "status" in first_day
+    assert first_day["status"] in ["available", "full", "off"]
+
+

@@ -2,6 +2,7 @@ export interface TimeSlot {
   startTime: string;
   endTime: string;
   isAvailable: boolean;
+  isPast?: boolean;
   locationId?: string;
   facilityName?: string;
   chamberRoom?: string;
@@ -41,4 +42,34 @@ export interface AddSlotTimePayload {
   bufferMinutes?: number;
   isActive?: boolean;
 }
+
+export interface DayScheduleSummary {
+  date: string;
+  dayOfWeek: number;
+  dayName: string;
+  dayNameBn: string;
+  formattedDate: string;
+  isToday: boolean;
+  hasShift: boolean;
+  chamberTiming?: string;
+  totalSlots: number;
+  availableSlotsCount: number;
+  isFull: boolean;
+  slots: TimeSlot[];
+}
+
+export interface DoctorMultiDayScheduleResponse {
+  doctorId: string;
+  locationId?: string;
+  facilityName?: string;
+  chamberRoom?: string;
+  consultationFee: number;
+  sittingDays: string[];
+  sittingDaysBn: string[];
+  sittingHours: string;
+  nextAvailableDate?: string;
+  nextAvailableSlot?: TimeSlot;
+  days: DayScheduleSummary[];
+}
+
 

@@ -8,6 +8,7 @@ class TimeSlot(CamelModel):
     start_time: str
     end_time: str
     is_available: bool
+    is_past: bool = False
     location_id: Optional[uuid.UUID] = None
     facility_name: Optional[str] = None
     chamber_room: Optional[str] = None
@@ -95,4 +96,31 @@ class ChamberShiftCreate(CamelModel):
 class ChamberShiftResponse(CamelModel):
     created_shifts: List[ChamberShiftRead]
     message: str
+
+class DayScheduleSummary(CamelModel):
+    date: str
+    day_of_week: int
+    day_name: str
+    day_name_bn: str
+    formatted_date: str
+    is_today: bool
+    has_shift: bool
+    chamber_timing: Optional[str] = None
+    total_slots: int
+    available_slots_count: int
+    is_full: bool
+    slots: List[TimeSlot]
+
+class DoctorMultiDayScheduleResponse(CamelModel):
+    doctor_id: uuid.UUID
+    location_id: Optional[uuid.UUID] = None
+    facility_name: Optional[str] = None
+    chamber_room: Optional[str] = None
+    consultation_fee: float = 1000.0
+    sitting_days: List[str] = Field(default_factory=list)
+    sitting_days_bn: List[str] = Field(default_factory=list)
+    sitting_hours: str
+    next_available_date: Optional[str] = None
+    next_available_slot: Optional[TimeSlot] = None
+    days: List[DayScheduleSummary]
 

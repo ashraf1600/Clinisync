@@ -7,12 +7,22 @@ from app.availability.models import Availability, AvailabilityException
 from app.availability.schemas import (
     DoctorDayAvailabilityResponse, TimeSlot, ShiftItem,
     RecurringShiftsUpdateRequest, ExceptionCreateRequest, ExceptionRead,
-    BulkGenerateRequest, BulkGenerateResponse, ChamberShiftRead, ChamberShiftCreate
+    BulkGenerateRequest, BulkGenerateResponse, ChamberShiftRead, ChamberShiftCreate,
+    DayScheduleSummary, DoctorMultiDayScheduleResponse
 )
 from app.doctors.models import Doctor
 from app.core.exceptions import NotFoundException, ConflictException, BadRequestException
 
 class AvailabilityService:
+    DAY_NAMES = {
+        0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
+        4: "Thursday", 5: "Friday", 6: "Saturday"
+    }
+    DAY_NAMES_BN = {
+        0: "রবিবার", 1: "সোমবার", 2: "মঙ্গলবার", 3: "বুধবার",
+        4: "বৃহস্পতিবার", 5: "শুক্রবার", 6: "শনিবার"
+    }
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -476,3 +486,259 @@ class AvailabilityService:
         await self.db.delete(shift)
         await self.db.commit()
         return True
+
+    async def get_multi_day_schedule(
+        self,
+        doctor_id: uuid.UUID,
+        from_date: date | None = None,
+        days_count: int = 14,
+        location_id: uuid.UUID | None = None
+    ) -> DoctorMultiDayScheduleResponse:
+        from app.doctors.models import Doctor, DoctorLocation
+        from app.appointments.models import Appointment
+
+        # 1. Verify doctor exists and load chamber metadata
+        doc_res = await self.db.execute(select(Doctor).where(Doctor.id == doctor_id))
+        doctor = doc_res.scalar_one_or_none()
+        if not doctor:
+            raise NotFoundException(f"Doctor '{doctor_id}' not found")
+
+        locs_res = await self.db.execute(select(DoctorLocation).where(DoctorLocation.doctor_id == doctor_id))
+        locations_list = locs_res.scalars().all()
+        loc_map = {loc.id: loc for loc in locations_list}
+
+        target_loc = loc_map.get(location_id) if location_id else None
+        facility_name = target_loc.facility_name if target_loc else (doctor.facility_name or "Main Medical Chamber")
+        chamber_room = target_loc.chamber_room if target_loc else doctor.chamber_room
+        fee = target_loc.consultation_fee if target_loc else (doctor.consultation_fee or 1000.0)
+
+        # 2. Date range calculation (Asia/Dhaka UTC+6)
+        dhaka_tz = timezone(timedelta(hours=6))
+        now_local = datetime.now(dhaka_tz)
+        start_date = from_date or now_local.date()
+        end_date = start_date + timedelta(days=days_count)
+
+        # 3. Load active recurring shifts for this doctor
+        shift_query = select(Availability).where(
+            and_(
+                Availability.doctor_id == doctor_id,
+                Availability.is_active == True
+            )
+        )
+        if location_id:
+            shift_query = shift_query.where(or_(Availability.location_id == location_id, Availability.location_id == None))
+
+        shifts_res = await self.db.execute(shift_query)
+        shifts = shifts_res.scalars().all()
+
+        has_custom_shifts = len(shifts) > 0
+        shifts_by_dow: dict[int, list[Availability]] = {}
+        if has_custom_shifts:
+            for s in shifts:
+                shifts_by_dow.setdefault(s.day_of_week, []).append(s)
+
+        # Compute general sitting days & hours summary
+        if has_custom_shifts:
+            active_dows = sorted(list(shifts_by_dow.keys()))
+            sitting_days = [self.DAY_NAMES[d] for d in active_dows if d in self.DAY_NAMES]
+            sitting_days_bn = [self.DAY_NAMES_BN[d] for d in active_dows if d in self.DAY_NAMES_BN]
+            first_shift = shifts[0]
+            sitting_hours = f"{first_shift.start_time.strftime('%I:%M %p')} - {first_shift.end_time.strftime('%I:%M %p')}"
+        else:
+            # Default doctor chamber practice: Saturday to Thursday (17:00 - 21:00)
+            active_dows = [6, 0, 1, 2, 3, 4]
+            sitting_days = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
+            sitting_days_bn = ["শনিবার", "রবিবার", "সোমবার", "মঙ্গলবার", "বুধবার", "বৃহস্পতিবার"]
+            sitting_hours = "05:00 PM - 09:00 PM"
+
+        # 4. Load all exceptions in the date range
+        exc_res = await self.db.execute(
+            select(AvailabilityException).where(
+                and_(
+                    AvailabilityException.doctor_id == doctor_id,
+                    AvailabilityException.exception_date >= start_date,
+                    AvailabilityException.exception_date < end_date,
+                )
+            )
+        )
+        exceptions_by_date = {e.exception_date: e for e in exc_res.scalars().all()}
+
+        # 5. Load all booked appointments across the window in a single batch
+        start_dt_utc = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0, tzinfo=timezone.utc)
+        end_dt_utc = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc)
+
+        appts_query = select(Appointment).where(
+            and_(
+                Appointment.doctor_id == doctor_id,
+                Appointment.status.in_(["pending", "confirmed", "completed"]),
+                Appointment.start_time >= start_dt_utc,
+                Appointment.start_time <= end_dt_utc,
+            )
+        )
+        if location_id:
+            appts_query = appts_query.where(or_(Appointment.location_id == location_id, Appointment.location_id == None))
+
+        appts_res = await self.db.execute(appts_query)
+        booked_appts = appts_res.scalars().all()
+        booked_ranges = [(a.start_time, a.end_time) for a in booked_appts]
+
+        # 6. Build day-by-day availability summary
+        days_summary: list[DayScheduleSummary] = []
+        next_available_date = None
+        next_available_slot = None
+
+        for day_offset in range(days_count):
+            cur_date = start_date + timedelta(days=day_offset)
+            py_weekday = cur_date.weekday()
+            dow = (py_weekday + 1) % 7
+            day_name = self.DAY_NAMES.get(dow, "Unknown")
+            day_name_bn = self.DAY_NAMES_BN.get(dow, "অজানা")
+            formatted_date = cur_date.strftime("%b %d")
+            is_today = (cur_date == now_local.date())
+
+            # Check if doctor marked this day as off/holiday exception
+            exc = exceptions_by_date.get(cur_date)
+            if exc and not exc.is_available:
+                days_summary.append(
+                    DayScheduleSummary(
+                        date=cur_date.isoformat(),
+                        day_of_week=dow,
+                        day_name=day_name,
+                        day_name_bn=day_name_bn,
+                        formatted_date=formatted_date,
+                        is_today=is_today,
+                        has_shift=False,
+                        chamber_timing=exc.reason or "Clinic Holiday",
+                        total_slots=0,
+                        available_slots_count=0,
+                        is_full=False,
+                        slots=[]
+                    )
+                )
+                continue
+
+            # Determine shifts for this day
+            day_shifts = shifts_by_dow.get(dow, [])
+            if not has_custom_shifts and dow in active_dows:
+                default_start = time(17, 0)
+                default_end = time(21, 0)
+                cur_timing = "05:00 PM - 09:00 PM"
+                effective_day_shifts = [
+                    Availability(
+                        doctor_id=doctor_id,
+                        location_id=location_id,
+                        day_of_week=dow,
+                        start_time=default_start,
+                        end_time=default_end,
+                        slot_duration_minutes=30,
+                        buffer_minutes=10,
+                        is_active=True
+                    )
+                ]
+            else:
+                effective_day_shifts = day_shifts
+                if effective_day_shifts:
+                    cur_timing = f"{effective_day_shifts[0].start_time.strftime('%I:%M %p')} - {effective_day_shifts[0].end_time.strftime('%I:%M %p')}"
+                else:
+                    cur_timing = None
+
+            if not effective_day_shifts:
+                days_summary.append(
+                    DayScheduleSummary(
+                        date=cur_date.isoformat(),
+                        day_of_week=dow,
+                        day_name=day_name,
+                        day_name_bn=day_name_bn,
+                        formatted_date=formatted_date,
+                        is_today=is_today,
+                        has_shift=False,
+                        chamber_timing="Doctor Off",
+                        total_slots=0,
+                        available_slots_count=0,
+                        is_full=False,
+                        slots=[]
+                    )
+                )
+                continue
+
+            # Generate individual time slots for this day
+            day_slots: list[TimeSlot] = []
+            for s in effective_day_shifts:
+                cur_slot_time = datetime.combine(cur_date, s.start_time, tzinfo=timezone.utc)
+                shift_end_dt = datetime.combine(cur_date, s.end_time, tzinfo=timezone.utc)
+                dur = s.slot_duration_minutes or 30
+                buf = s.buffer_minutes or 10
+
+                s_loc = loc_map.get(s.location_id) if s.location_id else target_loc
+                s_loc_name = s_loc.facility_name if s_loc else facility_name
+                s_loc_room = s_loc.chamber_room if s_loc else chamber_room
+
+                while cur_slot_time + timedelta(minutes=dur) <= shift_end_dt:
+                    slot_end = cur_slot_time + timedelta(minutes=dur)
+
+                    # Collision check against existing appointments
+                    is_collided = False
+                    for b_start, b_end in booked_ranges:
+                        if max(cur_slot_time, b_start) < min(slot_end, b_end):
+                            is_collided = True
+                            break
+
+                    # Past time check for same-day slots
+                    is_past = False
+                    if is_today:
+                        slot_local = cur_slot_time.astimezone(dhaka_tz)
+                        if slot_local <= now_local:
+                            is_past = True
+
+                    is_avail = (not is_collided) and (not is_past)
+
+                    slot_obj = TimeSlot(
+                        start_time=cur_slot_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        end_time=slot_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        is_available=is_avail,
+                        is_past=is_past,
+                        location_id=s.location_id or location_id,
+                        facility_name=s_loc_name,
+                        chamber_room=s_loc_room
+                    )
+                    day_slots.append(slot_obj)
+
+                    # Pick earliest upcoming free slot
+                    if is_avail and not next_available_slot:
+                        next_available_slot = slot_obj
+                        next_available_date = cur_date.isoformat()
+
+                    cur_slot_time = slot_end + timedelta(minutes=buf)
+
+            avail_count = sum(1 for slot in day_slots if slot.is_available)
+            days_summary.append(
+                DayScheduleSummary(
+                    date=cur_date.isoformat(),
+                    day_of_week=dow,
+                    day_name=day_name,
+                    day_name_bn=day_name_bn,
+                    formatted_date=formatted_date,
+                    is_today=is_today,
+                    has_shift=True,
+                    chamber_timing=cur_timing,
+                    total_slots=len(day_slots),
+                    available_slots_count=avail_count,
+                    is_full=(avail_count == 0),
+                    slots=day_slots
+                )
+            )
+
+        return DoctorMultiDayScheduleResponse(
+            doctor_id=doctor_id,
+            location_id=location_id,
+            facility_name=facility_name,
+            chamber_room=chamber_room,
+            consultation_fee=fee,
+            sitting_days=sitting_days,
+            sitting_days_bn=sitting_days_bn,
+            sitting_hours=sitting_hours,
+            next_available_date=next_available_date,
+            next_available_slot=next_available_slot,
+            days=days_summary
+        )
+

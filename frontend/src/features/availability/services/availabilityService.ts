@@ -1,7 +1,14 @@
 import { apiClient } from '../../../services/api';
-import { DoctorAvailabilityResponse, ChamberShift, AddSlotTimePayload } from '../types';
+import { DoctorAvailabilityResponse, ChamberShift, AddSlotTimePayload, DoctorMultiDayScheduleResponse } from '../types';
 
 export const availabilityService = {
+  getDoctorSchedule: async (doctorId: string, days = 14, fromDate?: string, locationId?: string): Promise<DoctorMultiDayScheduleResponse> => {
+    const params: any = { days };
+    if (fromDate) params.fromDate = fromDate;
+    if (locationId) params.locationId = locationId;
+    const res = await apiClient.get(`/availability/${doctorId}/schedule`, { params });
+    return res.data;
+  },
   getSlots: async (doctorId: string, date: string, locationId?: string): Promise<DoctorAvailabilityResponse> => {
     const params: any = { date };
     if (locationId) params.locationId = locationId;
