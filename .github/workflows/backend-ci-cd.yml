@@ -78,14 +78,17 @@ jobs:
           # Stop the build if there are Python syntax errors or undefined names
           flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Run Pytest Test Suite
+      - name: Run Database Migrations & Pytest Test Suite
         env:
           ENVIRONMENT: test
           DATABASE_URL: postgresql+asyncpg://postgres:testpassword@localhost:5432/appointment_test_db
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test_secret_key_minimum_32_chars_long_123456
+          PYTHONPATH: .
+        working-directory: ./backend
         run: |
-          pytest backend/tests -v
+          alembic upgrade head
+          pytest tests -v
 
   build-and-deploy:
     name: Build Docker & Deploy to AWS
@@ -112,14 +115,9 @@ jobs:
 
       - name: Log in to Amazon ECR
         id: login-ecr
-        if: env.AWS_ACCESS_KEY_ID != '' || env.AWS_ROLE_TO_ASSUME != ''
         uses: aws-actions/amazon-ecr-login@v2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
       - name: Build and Push Docker Image to ECR
-        if: steps.login-ecr.conclusion == 'success'
         uses: docker/build-push-action@v5
         with:
           context: ./backend
