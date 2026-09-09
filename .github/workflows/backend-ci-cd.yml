@@ -38,6 +38,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: testpassword
           POSTGRES_DB: appointment_test_db
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -87,7 +88,7 @@ jobs:
           PYTHONPATH: .
         working-directory: ./backend
         run: |
-          pytest tests -v
+          pytest tests -v -rA
 
   build-and-deploy:
     name: Build Docker & Deploy to AWS
