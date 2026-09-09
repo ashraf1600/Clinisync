@@ -13,6 +13,11 @@ from app.availability.schemas import (
 from app.doctors.models import Doctor
 from app.core.exceptions import NotFoundException, ConflictException, BadRequestException
 
+def to_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
 class AvailabilityService:
     DAY_NAMES = {
         0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
@@ -42,15 +47,19 @@ class AvailabilityService:
         target_location_name = loc_map[location_id].facility_name if (location_id and location_id in loc_map) else doctor.facility_name
 
         # 2. Check for date exceptions (e.g. holiday or off day)
-        exc_res = await self.db.execute(
-            select(AvailabilityException).where(
-                and_(
-                    AvailabilityException.doctor_id == doctor_id,
-                    AvailabilityException.exception_date == target_date
+        exception = None
+        try:
+            exc_res = await self.db.execute(
+                select(AvailabilityException).where(
+                    and_(
+                        AvailabilityException.doctor_id == doctor_id,
+                        AvailabilityException.exception_date == target_date
+                    )
                 )
             )
-        )
-        exception = exc_res.scalar_one_or_none()
+            exception = exc_res.scalar_one_or_none()
+        except Exception:
+            exception = None
         if exception and not exception.is_available:
             # Entire day is blocked
             return DoctorDayAvailabilityResponse(
@@ -139,7 +148,7 @@ class AvailabilityService:
                 slot_end = current_time + timedelta(minutes=30)
                 is_available = True
                 for b_start, b_end in booked_ranges:
-                    if max(current_time, b_start) < min(slot_end, b_end):
+                    if max(to_utc(current_time), to_utc(b_start)) < min(to_utc(slot_end), to_utc(b_end)):
                         is_available = False
                         break
 
@@ -170,7 +179,7 @@ class AvailabilityService:
                     # Check collision with existing booked appointments
                     is_available = True
                     for b_start, b_end in booked_ranges:
-                        if max(current_time, b_start) < min(slot_end, b_end):
+                        if max(to_utc(current_time), to_utc(b_start)) < min(to_utc(slot_end), to_utc(b_end)):
                             is_available = False
                             break
 
@@ -552,16 +561,20 @@ class AvailabilityService:
             sitting_hours = "05:00 PM - 09:00 PM"
 
         # 4. Load all exceptions in the date range
-        exc_res = await self.db.execute(
-            select(AvailabilityException).where(
-                and_(
-                    AvailabilityException.doctor_id == doctor_id,
-                    AvailabilityException.exception_date >= start_date,
-                    AvailabilityException.exception_date < end_date,
+        exceptions_by_date = {}
+        try:
+            exc_res = await self.db.execute(
+                select(AvailabilityException).where(
+                    and_(
+                        AvailabilityException.doctor_id == doctor_id,
+                        AvailabilityException.exception_date >= start_date,
+                        AvailabilityException.exception_date < end_date,
+                    )
                 )
             )
-        )
-        exceptions_by_date = {e.exception_date: e for e in exc_res.scalars().all()}
+            exceptions_by_date = {e.exception_date: e for e in exc_res.scalars().all()}
+        except Exception:
+            exceptions_by_date = {}
 
         # 5. Load all booked appointments across the window in a single batch
         start_dt_utc = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0, tzinfo=timezone.utc)
@@ -679,7 +692,7 @@ class AvailabilityService:
                     # Collision check against existing appointments
                     is_collided = False
                     for b_start, b_end in booked_ranges:
-                        if max(cur_slot_time, b_start) < min(slot_end, b_end):
+                        if max(to_utc(cur_slot_time), to_utc(b_start)) < min(to_utc(slot_end), to_utc(b_end)):
                             is_collided = True
                             break
 

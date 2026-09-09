@@ -50,6 +50,16 @@ async def app_exception_handler(request: Request, exc: AppException):
         content=exc.detail,
     )
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    import traceback
+    import logging
+    logging.getLogger("uvicorn.error").error(f"Unhandled error on {request.url.path}: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal Server Error", "error": str(exc)},
+    )
+
 # Health Check Route
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health_check():
