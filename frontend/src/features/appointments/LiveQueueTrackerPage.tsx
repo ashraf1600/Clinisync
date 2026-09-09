@@ -204,6 +204,20 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
       weekday: 'short', month: 'short', day: 'numeric',
     });
 
+  // 7-day browsable strip (today + next 6 days): anyone can view the full
+  // serial list of any day; patient names stay privacy-masked by the API.
+  const addDaysLocal = (baseStr: string, n: number): string => {
+    const d = new Date(`${baseStr}T00:00:00`);
+    d.setDate(d.getDate() + n);
+    return toLocalDateStr(d);
+  };
+  const stripDays = Array.from({ length: 7 }, (_, i) => addDaysLocal(todayStr, i));
+  const myDayOutsideStrip = myApptDate && !stripDays.includes(myApptDate) ? myApptDate : null;
+  const jumpToDate = (dateStr: string) => {
+    setTrackDate(dateStr);
+    fetchDoctorQueue(selectedDoctorId, dateStr, true);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Top Header Banner */}
@@ -421,10 +435,7 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
               {/* Future serial nudge: booking exists on another day while tracking today */}
               {myApptDate && myApptDate !== todayStr && !isFutureTrack && (
                 <button
-                  onClick={() => {
-                    setTrackDate(myApptDate);
-                    fetchDoctorQueue(selectedDoctorId, myApptDate, true);
-                  }}
+                  onClick={() => jumpToDate(myApptDate)}
                   className="w-full p-4 rounded-3xl bg-blue-700 hover:bg-blue-600 text-white shadow flex items-center justify-between transition cursor-pointer"
                 >
                   <span className="text-xs font-bold">
@@ -436,44 +447,63 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                 </button>
               )}
 
-              {/* Tracked-date selector: Today vs my serial day */}
-              {myApptDate && myApptDate !== todayStr && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      setTrackDate(todayStr);
-                      fetchDoctorQueue(selectedDoctorId, todayStr, true);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
-                      !isFutureTrack
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {language === 'bn' ? 'আজকের লাইভ কিউ' : 'Today Live'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTrackDate(myApptDate);
-                      fetchDoctorQueue(selectedDoctorId, myApptDate, true);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
-                      isFutureTrack
-                        ? 'bg-amber-500 text-white border-amber-500'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {language === 'bn' ? `আমার সিরিয়াল · ${fmtDay(myApptDate)}` : `My serial day · ${fmtDay(myApptDate)}`}
-                  </button>
-                  {isFutureTrack && (
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      {language === 'bn'
-                        ? 'লাইভ চলমান সিরিয়াল ওই দিন সক্রিয় হবে'
-                        : 'Live running serial activates on that day'}
-                    </span>
+              {/* Day browser: anyone can view this doctor's full serial list for any day.
+                  Patient identities stay masked (API masks names for non-doctor roles). */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  {language === 'bn' ? '📅 দিন বেছে সিরিয়াল তালিকা দেখুন' : 'Browse serial list by day'}
+                </span>
+                <div className="flex space-x-2 overflow-x-auto pb-1">
+                  {stripDays.map((d) => {
+                    const isSel = trackDate === d;
+                    const isMine = myApptDate === d;
+                    const isToday = d === todayStr;
+                    return (
+                      <button
+                        key={d}
+                        onClick={() => jumpToDate(d)}
+                        className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition border cursor-pointer flex flex-col items-center min-w-[86px] ${
+                          isSel
+                            ? isMine
+                              ? 'bg-amber-500 text-white border-amber-500 shadow'
+                              : 'bg-slate-900 text-white border-slate-900 shadow'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase opacity-80">
+                          {isToday ? (language === 'bn' ? 'আজ' : 'Today') : fmtDay(d).split(' ').slice(0, 1)}
+                        </span>
+                        <span>{isToday ? fmtDay(d) : fmtDay(d)}</span>
+                        {isMine && (
+                          <span className={`text-[9px] font-extrabold px-1.5 rounded-full mt-0.5 ${isSel ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'}`}>
+                            {language === 'bn' ? 'আমার সিরিয়াল' : 'MY SERIAL'}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {myDayOutsideStrip && (
+                    <button
+                      onClick={() => jumpToDate(myDayOutsideStrip)}
+                      className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition border cursor-pointer flex flex-col items-center min-w-[86px] ${
+                        trackDate === myDayOutsideStrip
+                          ? 'bg-amber-500 text-white border-amber-500 shadow'
+                          : 'bg-amber-50 text-amber-800 border-amber-300 hover:border-amber-500'
+                      }`}
+                    >
+                      <span className="text-[10px] uppercase opacity-80">{language === 'bn' ? 'আমার সিরিয়াল' : 'My serial'}</span>
+                      <span>{fmtDay(myDayOutsideStrip)}</span>
+                    </button>
                   )}
                 </div>
-              )}
+                {isFutureTrack && (
+                  <span className="text-[11px] text-slate-500 font-medium block">
+                    {language === 'bn'
+                      ? 'লাইভ চলমান সিরিয়াল ওই দিন সক্রিয় হবে · নাম গোপন রাখা আছে'
+                      : 'Live running serial activates on that day · names kept private'}
+                  </span>
+                )}
+              </div>
 
               {/* Pause Alert (If Doctor is on Break) */}
               {isPaused && (
