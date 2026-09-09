@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Camera, Plus, Save, Trash2, Clock } from 'lucide-react';
 import { doctorService } from './services/doctorService';
 import { Doctor, DoctorChamberLocation } from './types';
+import { getDoctorPhotoUrl } from './utils/chamberUtils';
 
 const emptyLocation = (): DoctorChamberLocation => ({
   id: crypto.randomUUID(),
@@ -85,7 +86,7 @@ export const DoctorProfilePage: React.FC = () => {
       <form onSubmit={save} className="space-y-6">
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row gap-5 items-start">
           <div className="relative">
-            {profile.profilePhotoUrl ? <img src={profile.profilePhotoUrl} alt={profile.name} className="w-24 h-24 rounded-2xl object-cover border border-slate-200" /> : <div className="w-24 h-24 rounded-2xl bg-blue-700 text-white flex items-center justify-center text-3xl font-black">{profile.name[0]}</div>}
+            {profile.profilePhotoUrl ? <img src={getDoctorPhotoUrl(profile.profilePhotoUrl) || profile.profilePhotoUrl} alt={profile.name} className="w-24 h-24 rounded-2xl object-cover border border-slate-200" /> : <div className="w-24 h-24 rounded-2xl bg-blue-700 text-white flex items-center justify-center text-3xl font-black">{profile.name[0]}</div>}
             <label className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center cursor-pointer shadow" title="Upload profile photo">
               <Camera className="w-4 h-4" />
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPhoto} className="hidden" />

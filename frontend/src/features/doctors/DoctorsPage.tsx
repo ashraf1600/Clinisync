@@ -3,6 +3,7 @@ import { Search, Star, Clock, Award, ShieldCheck, MapPin, Plus } from 'lucide-re
 import { doctorService } from './services/doctorService';
 import { Doctor } from './types';
 import { getDoctorChambers } from './utils/chamberUtils';
+import { DoctorAvatar } from '../../components/DoctorAvatar';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface DoctorsPageProps {
@@ -20,6 +21,7 @@ const DEMO_DOCTORS: Doctor[] = [
     designation: 'Senior Consultant & Professor',
     facility: 'Popular Diagnostic Centre, Dhanmondi',
     chamber: 'Room #405, Level 4',
+    profilePhotoUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
     consultationFee: 1500,
     followupFee: 1000,
     rating: 4.9,
@@ -50,6 +52,7 @@ const DEMO_DOCTORS: Doctor[] = [
     designation: 'Associate Professor',
     facility: 'Square Hospital, Panthapath',
     chamber: 'Chamber #208, 2nd Floor',
+    profilePhotoUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
     consultationFee: 1200,
     followupFee: 800,
     rating: 4.8,
@@ -80,6 +83,7 @@ const DEMO_DOCTORS: Doctor[] = [
     designation: 'Consultant Neurologist',
     facility: 'Evercare Hospital, Bashundhara',
     chamber: 'Consultation Suite 12',
+    profilePhotoUrl: 'https://randomuser.me/api/portraits/men/54.jpg',
     consultationFee: 1600,
     followupFee: 1000,
     rating: 4.9,
@@ -110,6 +114,7 @@ const DEMO_DOCTORS: Doctor[] = [
     designation: 'Assistant Professor',
     facility: 'Ibn Sina Diagnostic Center, Uttara',
     chamber: 'Room #302, Level 3',
+    profilePhotoUrl: 'https://randomuser.me/api/portraits/women/68.jpg',
     consultationFee: 1000,
     followupFee: 600,
     rating: 4.7,
@@ -296,13 +301,7 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
               <div>
                 {/* Profile Header */}
                 <div className="flex items-start space-x-4">
-                  <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-2xl font-bold text-teal-700 shadow-inner overflow-hidden">
-                    {doctor.profilePhotoUrl ? (
-                      <img src={doctor.profilePhotoUrl} alt={doctor.name} className="w-full h-full object-cover" />
-                    ) : (
-                      '👨‍⚕️'
-                    )}
-                  </div>
+                  <DoctorAvatar name={doctor.name} profilePhotoUrl={doctor.profilePhotoUrl} sizeClass="w-16 h-16 text-xl" />
                   <div className="flex-1">
                     <div className="flex items-center space-x-1.5">
                       <h3 className="text-base font-bold text-slate-900">{doctor.name}</h3>

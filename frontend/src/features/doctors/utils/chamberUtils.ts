@@ -1,5 +1,40 @@
 import { Doctor, DoctorChamberLocation } from '../types';
 
+export const getApiBaseOrigin = (): string => {
+  const base =
+    (import.meta as any).env?.VITE_API_BASE_URL ||
+    (import.meta as any).env?.VITE_API_URL ||
+    '';
+  if (typeof base === 'string' && /^https?:\/\//i.test(base)) {
+    // Strip trailing /api/v1 or /api so we can resolve /uploads/... correctly
+    return base.replace(/\/api\/v1\/?$/i, '').replace(/\/api\/?$/i, '').replace(/\/$/, '');
+  }
+  return '';
+};
+
+/** Resolve backend relative photo paths (e.g. "/uploads/profile_photos/x.jpg") to a loadable URL. */
+export const getDoctorPhotoUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (/^(https?:\/\/|data:|blob:)/i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/')) {
+    const origin = getApiBaseOrigin();
+    // In dev, vite proxies /uploads -> backend; in prod same-origin serves /uploads.
+    // If an absolute API origin is configured (e.g. CloudFront/API domain), prefix it.
+    return origin ? `${origin}${trimmed}` : trimmed;
+  }
+  return trimmed;
+};
+
+export const getDoctorInitials = (name?: string | null): string => {
+  if (!name) return 'DR';
+  const parts = name.replace(/^Dr\.?\s+/i, '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'DR';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 export const getDoctorChambers = (doctor?: Doctor | null): DoctorChamberLocation[] => {
   if (!doctor) return [];
   const baseFacility = doctor.facility || doctor.facilityName || 'Popular Diagnostic Centre';
