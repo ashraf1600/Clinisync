@@ -45,23 +45,24 @@ jobs:
 
       - name: Sanitize AWS Configuration
         if: github.ref == 'refs/heads/main'
+        env:
+          INPUT_REGION: ${{ secrets.AWS_REGION }}
+          INPUT_BUCKET: ${{ secrets.FRONTEND_S3_BUCKET }}
+          INPUT_ROLE: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          INPUT_CF: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
-          RAW_REGION="${{ secrets.AWS_REGION }}"
-          CLEAN_REGION="$(echo "$RAW_REGION" | tr -d '[:space:]"'"')"
+          CLEAN_REGION=$(printf '%s' "$INPUT_REGION" | tr -cd '[:alnum:]-')
           if [ -z "$CLEAN_REGION" ]; then CLEAN_REGION="us-east-1"; fi
           echo "AWS_REGION=$CLEAN_REGION" >> $GITHUB_ENV
           echo "AWS_DEFAULT_REGION=$CLEAN_REGION" >> $GITHUB_ENV
 
-          RAW_BUCKET="${{ secrets.FRONTEND_S3_BUCKET }}"
-          CLEAN_BUCKET="$(echo "$RAW_BUCKET" | tr -d '[:space:]"'"' | sed 's|^s3://||')"
+          CLEAN_BUCKET=$(printf '%s' "$INPUT_BUCKET" | tr -d '[:space:]"' | sed 's|^s3://||')
           echo "FRONTEND_S3_BUCKET=$CLEAN_BUCKET" >> $GITHUB_ENV
 
-          RAW_ROLE="${{ secrets.AWS_ROLE_TO_ASSUME }}"
-          CLEAN_ROLE="$(echo "$RAW_ROLE" | tr -d '[:space:]"'"')"
+          CLEAN_ROLE=$(printf '%s' "$INPUT_ROLE" | tr -d '[:space:]"')
           echo "AWS_ROLE_TO_ASSUME=$CLEAN_ROLE" >> $GITHUB_ENV
 
-          RAW_CF="${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
-          CLEAN_CF="$(echo "$RAW_CF" | tr -d '[:space:]"'"')"
+          CLEAN_CF=$(printf '%s' "$INPUT_CF" | tr -d '[:space:]"')
           echo "CLOUDFRONT_DISTRIBUTION_ID=$CLEAN_CF" >> $GITHUB_ENV
 
       - name: Configure AWS Credentials (OIDC)

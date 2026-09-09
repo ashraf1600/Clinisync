@@ -120,19 +120,20 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Sanitize AWS Configuration
+        env:
+          INPUT_REGION: ${{ secrets.AWS_REGION }}
+          INPUT_ROLE: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          INPUT_REPO: ${{ secrets.ECR_REPOSITORY }}
         run: |
-          RAW_REGION="${{ secrets.AWS_REGION }}"
-          CLEAN_REGION="$(echo "$RAW_REGION" | tr -d '[:space:]"'"')"
+          CLEAN_REGION=$(printf '%s' "$INPUT_REGION" | tr -cd '[:alnum:]-')
           if [ -z "$CLEAN_REGION" ]; then CLEAN_REGION="us-east-1"; fi
           echo "AWS_REGION=$CLEAN_REGION" >> $GITHUB_ENV
           echo "AWS_DEFAULT_REGION=$CLEAN_REGION" >> $GITHUB_ENV
 
-          RAW_ROLE="${{ secrets.AWS_ROLE_TO_ASSUME }}"
-          CLEAN_ROLE="$(echo "$RAW_ROLE" | tr -d '[:space:]"'"')"
+          CLEAN_ROLE=$(printf '%s' "$INPUT_ROLE" | tr -d '[:space:]"')
           echo "AWS_ROLE_TO_ASSUME=$CLEAN_ROLE" >> $GITHUB_ENV
 
-          RAW_REPO="${{ secrets.ECR_REPOSITORY }}"
-          CLEAN_REPO="$(echo "$RAW_REPO" | tr -d '[:space:]"'"')"
+          CLEAN_REPO=$(printf '%s' "$INPUT_REPO" | tr -d '[:space:]"')
           if [ -z "$CLEAN_REPO" ]; then CLEAN_REPO="clinisync-backend"; fi
           echo "ECR_REPO_NAME=${CLEAN_REPO##*/}" >> $GITHUB_ENV
 
