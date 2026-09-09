@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { appointmentService } from './services/appointmentService';
 import { Appointment, DoctorQueueResponse } from './types';
+import { ChamberPassModal } from '../../components/ChamberPassModal';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -46,7 +47,15 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
   const [cancelModalAppt, setCancelModalAppt] = useState<Appointment | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('Schedule clash / Emergency');
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Local calendar date (avoids UTC off-by-one near midnight)
+  const toLocalDateStr = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const todayStr = toLocalDateStr(new Date());
 
   const fetchAppointments = async () => {
     if (!isAuthenticated) return;
@@ -221,10 +230,20 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
         <div className="space-y-4">
           {appointments.map((appt) => {
             const queueInfo = doctorQueueMap[appt.doctorId];
-            const runningSerial = queueInfo?.currentRunningSerial;
+            // Token numbers repeat daily: running info is only meaningful for today's appts
+            const isTodayAppt = toLocalDateStr(new Date(appt.startTime)) === todayStr;
+            const runningSerial = isTodayAppt ? queueInfo?.currentRunningSerial : undefined;
             const isMyTurn = runningSerial === appt.tokenNumber;
             const isAhead = runningSerial && appt.tokenNumber > runningSerial;
             const waitPatients = isAhead ? appt.tokenNumber - runningSerial : 0;
+            // Avg consultation minutes from the live queue's real slot durations
+            const qItems = queueInfo?.items || queueInfo?.queue || [];
+            const qDurs = qItems
+              .map((i) => (new Date(i.endTime).getTime() - new Date(i.startTime).getTime()) / 60000)
+              .filter((n) => n > 0 && n < 240);
+            const avgMin = qDurs.length > 0
+              ? Math.max(5, Math.round(qDurs.reduce((a, b) => a + b, 0) / qDurs.length))
+              : 12;
 
             return (
               <div
@@ -277,8 +296,14 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
                           ) : isAhead ? (
                             <span>
                               {language === 'bn'
-                                ? `চেম্বারে চলমান সিরিয়াল: #${runningSerial} · আপনার আগে অপেক্ষমাণ: ${waitPatients} জন (আনুমানিক অপেক্ষা: ${waitPatients * 12} মিনিট)`
-                                : `Running serial: #${runningSerial} · Patients ahead: ${waitPatients} (~${waitPatients * 12} mins wait)`}
+                                ? `চেম্বারে চলমান সিরিয়াল: #${runningSerial} · আপনার আগে অপেক্ষমাণ: ${waitPatients} জন (আনুমানিক অপেক্ষা: ${waitPatients * avgMin} মিনিট)`
+                                : `Running serial: #${runningSerial} · Patients ahead: ${waitPatients} (~${waitPatients * avgMin} mins wait)`}
+                            </span>
+                          ) : !isTodayAppt ? (
+                            <span>
+                              {language === 'bn'
+                                ? `📅 সিরিয়াল ${new Date(appt.startTime).toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' })} তারিখের · লাইভ কিউ ওই দিন সক্রিয় হবে`
+                                : `📅 Serial is on ${new Date(appt.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · live queue activates that day`}
                             </span>
                           ) : (
                             <span>
@@ -319,147 +344,9 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
         </div>
       )}
 
-      {/* Official Chamber Pass / QR Slip Modal */}
+      {/* Official Chamber Pass / QR Slip Modal (shared component) */}
       {selectedPass && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
-            <button
-              onClick={() => setSelectedPass(null)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 inline-block mb-3">
-                {language === 'bn' ? 'অফিসিয়াল চেম্বার অ্যাপয়েন্টমেন্ট স্লিপ' : 'Official Chamber Slip'}
-              </span>
-
-              {/* Big Token Number Display */}
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-slate-900 to-teal-900 text-white flex flex-col items-center justify-center mx-auto shadow-xl my-2 border-2 border-teal-400/30">
-                <span className="text-[10px] uppercase font-bold text-teal-300 tracking-wider">SERIAL</span>
-                <span className="text-4xl font-black">#{selectedPass.tokenNumber}</span>
-              </div>
-
-              <h3 className="text-lg font-black text-slate-900 mt-2">{selectedPass.doctorName}</h3>
-              <p className="text-xs text-teal-700 font-bold">{selectedPass.specialization}</p>
-
-              {/* QR Code Pass */}
-              <div className="my-4 p-3 bg-slate-50 rounded-2xl border border-slate-200 inline-block shadow-inner">
-                <div className="w-32 h-32 bg-white p-2 rounded-xl flex items-center justify-center border border-slate-200 mx-auto">
-                  <div className="w-full h-full border-2 border-dashed border-slate-800 rounded flex flex-col items-center justify-center text-center p-1">
-                    <QrCode className="w-14 h-14 text-slate-900" />
-                    <span className="text-[9px] font-mono font-bold text-slate-700 mt-1">TOKEN-{selectedPass.tokenNumber}</span>
-                  </div>
-                </div>
-                <span className="text-[9px] uppercase font-black text-slate-400 block mt-1 tracking-wider">
-                  SCAN AT CLINIC RECEPTION
-                </span>
-              </div>
-
-              {/* Slip Summary Info */}
-              <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2.5 border border-slate-200/80 text-xs mb-5 divide-y divide-slate-100">
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <User className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'রোগীর নাম (Patient):' : 'Patient Name:'}
-                  </span>
-                  <span className="font-extrabold text-slate-900">{selectedPass.patientName || user?.name || 'Registered Patient'}</span>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <Stethoscope className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'চিকিৎসক (Doctor):' : 'Doctor Name:'}
-                  </span>
-                  <div className="text-right">
-                    <span className="font-extrabold text-slate-900 block">{selectedPass.doctorName}</span>
-                    <span className="text-[10px] text-teal-700 font-bold">{selectedPass.specialization}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'হাসপাতাল ও চেম্বার:' : 'Hospital / Chamber:'}
-                  </span>
-                  <div className="text-right">
-                    <span className="font-extrabold text-blue-700 block">{selectedPass.facilityName || 'Popular Diagnostic Centre'}</span>
-                    <span className="text-[10px] text-slate-600 font-semibold">{selectedPass.chamberRoom || 'Room #402, Level 4'}{selectedPass.branchArea ? ` • ${selectedPass.branchArea}` : ''}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <Ticket className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'সিরিয়াল নম্বর (Serial No):' : 'Serial No:'}
-                  </span>
-                  <span className="font-black text-slate-900 text-sm bg-slate-200/70 px-2 py-0.5 rounded-lg">#{selectedPass.tokenNumber}</span>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'অ্যাপয়েন্টমেন্টের তারিখ:' : 'Scheduled Date:'}
-                  </span>
-                  <span className="font-extrabold text-slate-800">
-                    {new Date(selectedPass.startTime).toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" /> {language === 'bn' ? 'নির্ধারিত সময় (Slot Time):' : 'Slot Time:'}
-                  </span>
-                  <span className="font-extrabold text-slate-800">
-                    {new Date(selectedPass.startTime).toLocaleTimeString(language === 'bn' ? 'bn-BD' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 flex items-center gap-1.5 font-medium">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> {language === 'bn' ? 'সিরিয়াল নেওয়ার সময় (Booked On):' : 'Booked On:'}
-                  </span>
-                  <span className="font-semibold text-slate-700 text-[11px]">
-                    {selectedPass.createdAt
-                      ? new Date(selectedPass.createdAt).toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
-                      : 'Recently Booked'}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 font-medium">{language === 'bn' ? 'ভিজিট ফি (Consultation Fee):' : 'Consultation Fee:'}</span>
-                  <span className="font-black text-teal-700 text-sm">৳{selectedPass.fee || 1000}</span>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-slate-500 font-medium">{language === 'bn' ? 'পেমেন্ট মাধ্যম (Payment Mode):' : 'Payment Mode:'}</span>
-                  <span className="font-black text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded text-[10px] tracking-wide uppercase">
-                    {language === 'bn' ? 'চেম্বারে নগদ প্রদান' : 'PAY AT CHAMBER'}
-                  </span>
-                </div>
-
-                {selectedPass.id && (
-                  <div className="flex justify-between items-center pt-2 text-[10px] text-slate-400 font-mono">
-                    <span>Tracking Ref:</span>
-                    <span>{selectedPass.id.slice(0, 13).toUpperCase()}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => window.print()}
-                  className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>{language === 'bn' ? 'প্রিন্ট স্লিপ' : 'Print Slip'}</span>
-                </button>
-                <button
-                  onClick={() => setSelectedPass(null)}
-                  className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ChamberPassModal appt={selectedPass} onClose={() => setSelectedPass(null)} />
       )}
 
       {/* Cancellation Modal */}

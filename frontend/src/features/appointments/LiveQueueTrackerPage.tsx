@@ -27,6 +27,7 @@ import { appointmentService } from './services/appointmentService';
 import { Doctor } from '../doctors/types';
 import { DoctorQueueResponse, Appointment } from './types';
 import { DoctorAvatar } from '../../components/DoctorAvatar';
+import { ChamberPassModal } from '../../components/ChamberPassModal';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -763,73 +764,11 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
         </div>
       </div>
 
-      {/* Printable Chamber Pass / Slip Modal */}
+      {/* Chamber Pass (shared component) */}
       {selectedSlipAppt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative border border-slate-100">
-            <button
-              onClick={() => setSelectedSlipAppt(null)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 inline-block mb-3">
-                {language === 'bn' ? 'অফিসিয়াল চেম্বার প্রবেশ পাস' : 'Official Chamber Pass'}
-              </span>
-
-              {/* Token Number Display */}
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-slate-900 to-teal-900 text-white flex flex-col items-center justify-center mx-auto shadow-xl my-2 border-2 border-teal-400/30">
-                <span className="text-[10px] uppercase font-bold text-teal-300 tracking-wider">SERIAL</span>
-                <span className="text-3xl font-black">#{selectedSlipAppt.tokenNumber}</span>
-              </div>
-
-              <h3 className="text-base font-black text-slate-900 mt-2">{selectedSlipAppt.doctorName}</h3>
-              <p className="text-xs text-teal-700 font-semibold">{selectedSlipAppt.specialization}</p>
-
-              {/* QR Code Pass */}
-              <div className="my-4 p-3 bg-slate-50 rounded-2xl border border-slate-200 inline-block shadow-inner">
-                <div className="w-28 h-28 bg-white p-2 rounded-xl flex items-center justify-center border border-slate-200 mx-auto">
-                  <div className="w-full h-full border-2 border-dashed border-slate-800 rounded flex flex-col items-center justify-center text-center p-1">
-                    <QrCode className="w-12 h-12 text-slate-900" />
-                    <span className="text-[8px] font-mono font-bold text-slate-600 mt-1">TOKEN-{selectedSlipAppt.tokenNumber}</span>
-                  </div>
-                </div>
-                <span className="text-[9px] uppercase font-bold text-slate-400 block mt-1 tracking-wider">
-                  SCAN AT CLINIC DESK
-                </span>
-              </div>
-
-              {/* Chamber Details */}
-              <div className="bg-slate-50 rounded-2xl p-3 text-left space-y-1.5 border border-slate-100 text-xs mb-4">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Scheduled Time:</span>
-                  <span className="font-bold text-slate-800">
-                    {new Date(selectedSlipAppt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Consultation Fee:</span>
-                  <span className="font-extrabold text-teal-700">৳{selectedSlipAppt.fee || 1000}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Payment:</span>
-                  <span className="font-bold text-amber-700 uppercase text-[10px]">PAY AT CHAMBER</span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => window.print()}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>{language === 'bn' ? 'প্রিন্ট অথবা সেভ স্লিপ' : 'Print / Download Slip'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <ChamberPassModal appt={selectedSlipAppt} onClose={() => setSelectedSlipAppt(null)} />
       )}
+
     </div>
   );
 };
