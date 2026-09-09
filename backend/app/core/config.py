@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
 
+    # Cron (reminder scheduler shared secret — set a strong value in production)
+    CRON_SECRET_KEY: str = "change-me-in-production"
+
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

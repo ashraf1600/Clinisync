@@ -32,6 +32,24 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     }
   }
 
+  IconData _iconFor(String type) {
+    switch (type) {
+      case 'booking_confirmed':
+        return Icons.confirmation_number;
+      case 'queue_update':
+        return Icons.update;
+      case 'doctor_break':
+        return Icons.coffee;
+      case 'reminder_24h':
+      case 'reminder_1h':
+        return Icons.alarm;
+      case 'cancelled':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.notifications;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,9 +80,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: Icon(
-                          n.notificationType == 'booking_confirmed'
-                              ? Icons.confirmation_number
-                              : Icons.notifications,
+                          _iconFor(n.notificationType),
                           color: AppColors.primary,
                         ),
                         title: Text(n.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),

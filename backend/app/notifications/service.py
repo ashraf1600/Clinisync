@@ -1,12 +1,14 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, and_
 from app.notifications.models import UserDevice, Notification
+from app.appointments.models import Appointment
 from app.notifications.schemas import (
     DeviceRegisterRequest, DeviceRead, NotificationItem,
-    NotificationListResponse, NotificationReadResponse, MarkAllReadResponse
+    NotificationListResponse, NotificationReadResponse, MarkAllReadResponse,
+    ReminderRunResponse
 )
 from app.core.exceptions import NotFoundException
 
@@ -117,3 +119,72 @@ class NotificationService:
         res = await self.db.execute(stmt)
         await self.db.commit()
         return MarkAllReadResponse(success=True, marked_count=res.rowcount)
+
+    async def _remind_window(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+        ntype: str,
+        title: str,
+        when_word: str,
+    ) -> tuple[int, int]:
+        """Create reminders for appointments starting inside the window.
+
+        Idempotent: skips appointments that already have this reminder type.
+        Returns (checked, sent).
+        """
+        res = await self.db.execute(
+            select(Appointment).where(
+                and_(
+                    Appointment.status.in_(["pending", "confirmed"]),
+                    Appointment.start_time >= window_start,
+                    Appointment.start_time < window_end,
+                )
+            )
+        )
+        appts = list(res.scalars().all())
+        sent = 0
+        for a in appts:
+            dup = await self.db.execute(
+                select(func.count()).where(
+                    and_(
+                        Notification.appointment_id == a.id,
+                        Notification.notification_type == ntype,
+                    )
+                )
+            )
+            if dup.scalar_one() > 0:
+                continue
+            doc_name = a.doctor.user.name if (a.doctor and a.doctor.user) else "Doctor"
+            when = a.start_time.strftime("%b %d, %I:%M %p")
+            try:
+                self.db.add(
+                    Notification(
+                        user_id=a.patient_id,
+                        appointment_id=a.id,
+                        title=title,
+                        body=f"Reminder: Serial #{a.token_number} with {doc_name} {when_word} ({when}). Please arrive 15 min early.",
+                        notification_type=ntype,
+                        metadata_={"tokenNumber": a.token_number, "doctorName": doc_name},
+                    )
+                )
+                await self.db.commit()
+                sent += 1
+            except Exception:
+                await self.db.rollback()
+        return len(appts), sent
+
+    async def send_due_reminders(self) -> ReminderRunResponse:
+        now = datetime.now(timezone.utc)
+        checked_24h, sent_24h = await self._remind_window(
+            now + timedelta(hours=23), now + timedelta(hours=25),
+            "reminder_24h", "Appointment Tomorrow 🔔", "tomorrow",
+        )
+        checked_1h, sent_1h = await self._remind_window(
+            now + timedelta(minutes=50), now + timedelta(minutes=70),
+            "reminder_1h", "Appointment in 1 Hour ⏰", "in about an hour",
+        )
+        return ReminderRunResponse(
+            checked_24h=checked_24h, sent_24h=sent_24h,
+            checked_1h=checked_1h, sent_1h=sent_1h,
+        )

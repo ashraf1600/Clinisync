@@ -90,6 +90,22 @@ class DoctorQueueResponse(CamelModel):
     queue: List[DoctorQueueItem] = Field(default_factory=list)
     items: List[DoctorQueueItem] = Field(default_factory=list)
 
+class AppointmentVerifyResponse(CamelModel):
+    """Reception check-in payload for a scanned chamber-pass QR."""
+    id: uuid.UUID
+    token_number: int
+    status: str
+    valid: bool
+    patient_name: str
+    doctor_name: str
+    specialization: str = "General"
+    facility_name: Optional[str] = None
+    chamber_room: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    payment_status: str = "pay_at_chamber"
+    fee: float = 0.0
+
 class QueuePauseRequest(CamelModel):
     pause_minutes: int = 5
     reason: Optional[str] = "Short clinical break / documentation"

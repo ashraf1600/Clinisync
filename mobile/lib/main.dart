@@ -5,6 +5,7 @@ import 'features/doctors/screens/doctor_directory_screen.dart';
 import 'features/appointments/screens/patient_bookings_screen.dart';
 import 'features/appointments/screens/live_queue_tracker_screen.dart';
 import 'features/notifications/screens/notification_center_screen.dart';
+import 'features/notifications/services/notification_repository.dart';
 
 void main() {
   runApp(const CliniSyncApp());
@@ -33,6 +34,8 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  int _unreadCount = 0;
+  final NotificationRepository _notifRepo = NotificationRepository();
 
   final List<Widget> _screens = const [
     DoctorDirectoryScreen(),
@@ -42,31 +45,64 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _refreshUnread();
+  }
+
+  Future<void> _refreshUnread() async {
+    try {
+      final count = await _notifRepo.getUnreadCount();
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {
+      // Not logged in yet or offline: keep badge hidden.
+    }
+  }
+
+  void _onDestinationSelected(int index) {
+    setState(() => _currentIndex = index);
+    if (index == 3) {
+      // Opening Alerts: re-sync badge shortly after (screen marks items read on tap).
+      Future.delayed(const Duration(seconds: 1), _refreshUnread);
+    } else {
+      _refreshUnread();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: const [
-          NavigationDestination(
+        onDestinationSelected: _onDestinationSelected,
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.medical_services_outlined),
             selectedIcon: Icon(Icons.medical_services, color: AppColors.primary),
             label: 'Specialists',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.confirmation_number_outlined),
             selectedIcon: Icon(Icons.confirmation_number, color: AppColors.primary),
             label: 'My Tokens',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.access_time_outlined),
             selectedIcon: Icon(Icons.access_time_filled, color: AppColors.primary),
             label: 'Live Queue',
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications, color: AppColors.primary),
+            icon: Badge.count(
+              count: _unreadCount,
+              isLabelVisible: _unreadCount > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            selectedIcon: Badge.count(
+              count: _unreadCount,
+              isLabelVisible: _unreadCount > 0,
+              child: const Icon(Icons.notifications, color: AppColors.primary),
+            ),
             label: 'Alerts',
           ),
         ],

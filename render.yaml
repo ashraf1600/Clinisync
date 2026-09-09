@@ -18,6 +18,8 @@ services:
           property: connectionString
       - key: BACKEND_CORS_ORIGINS
         value: '["https://d15yucoed6jmf7.cloudfront.net","http://localhost:5173"]'
+      - key: CRON_SECRET_KEY
+        generateValue: true
 
 databases:
   - name: clinisync-db

@@ -11,6 +11,7 @@ import { ScheduleManagerPage } from './features/availability/ScheduleManagerPage
 import { DoctorOnboardingPage } from './features/admin/DoctorOnboardingPage';
 import { AdminPage } from './features/admin/AdminPage';
 import { DoctorProfilePage } from './features/doctors/DoctorProfilePage';
+import { VerifyPassPage } from './features/appointments/VerifyPassPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { notificationService } from './features/notifications/services/notificationService';
 import { AuthModal } from './features/auth/components/AuthModal';
@@ -95,8 +96,17 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
 
 const validTabs = ['home', 'doctors', 'book', 'live-tracker', 'my-appointments', 'chamber', 'schedule', 'doctor-profile', 'onboarding', 'admin'];
 
+/** QR deep link: #verify/<appointment-uuid> (reception check-in) */
+const parseVerifyHash = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash.replace('#', '');
+  if (hash.startsWith('verify/') && hash.length > 7) return hash.slice(7);
+  return null;
+};
+
 const getInitialTab = (): string => {
   if (typeof window !== 'undefined') {
+    if (parseVerifyHash()) return 'verify';
     const hash = window.location.hash.replace('#', '');
     if (hash && validTabs.includes(hash)) {
       return hash;
@@ -113,6 +123,7 @@ const AppContent: React.FC = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [verifyId, setVerifyId] = useState<string | null>(() => parseVerifyHash());
 
   // Real unread badge: fetch on auth change + poll every 30s
   const loadUnread = async () => {
@@ -139,12 +150,20 @@ const AppContent: React.FC = () => {
   }, [isAuthenticated]);
 
   const handleTabChange = (tab: string) => {
+    if (tab !== 'verify') setVerifyId(null);
     setActiveTab(tab);
     window.location.hash = tab;
   };
 
   useEffect(() => {
     const handleHash = () => {
+      const vid = parseVerifyHash();
+      if (vid) {
+        setVerifyId(vid);
+        setActiveTab('verify');
+        return;
+      }
+      setVerifyId(null);
       const hash = window.location.hash.replace('#', '');
       if (hash && validTabs.includes(hash)) {
         setActiveTab(hash);
@@ -184,6 +203,16 @@ const AppContent: React.FC = () => {
       />
 
       <main className="flex-1">
+        {activeTab === 'verify' && verifyId && (
+          <RoleGuard
+            allowedRoles={['doctor', 'admin']}
+            requiredRoleName="Doctor / Clinic Staff"
+            onOpenLogin={() => setIsLoginModalOpen(true)}
+          >
+            <VerifyPassPage appointmentId={verifyId} />
+          </RoleGuard>
+        )}
+
         {activeTab === 'home' && (
           <LandingPage onNavigate={handleTabChange} />
         )}

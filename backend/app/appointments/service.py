@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
+import hashlib
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, text
 from sqlalchemy.exc import IntegrityError
 from app.appointments.models import Appointment
 from app.doctors.models import Doctor
@@ -11,9 +12,9 @@ from app.users.models import User
 from app.appointments.schemas import (
     AppointmentBookRequest, AppointmentRead, AppointmentRescheduleRequest,
     DoctorQueueItem, DoctorQueueResponse, QueuePauseRequest, QueuePauseResponse,
-    QueueResumeResponse
+    QueueResumeResponse, AppointmentVerifyResponse
 )
-from app.core.exceptions import NotFoundException, ConflictException, SlotConflictException, BadRequestException
+from app.core.exceptions import NotFoundException, ConflictException, SlotConflictException, BadRequestException, ForbiddenException
 from app.notifications.models import Notification
 
 # Global memory state for queue breaks
@@ -61,6 +62,26 @@ class AppointmentService:
         ).astimezone(timezone.utc)
         return start_utc, start_utc + timedelta(days=1)
 
+    @staticmethod
+    def _slot_lock_key(doctor_id: uuid.UUID, day: date) -> int:
+        """Stable 63-bit key so every worker/process serializes the same doctor-day."""
+        digest = hashlib.sha256(f"{doctor_id}:{day.isoformat()}".encode()).hexdigest()
+        return int(digest[:15], 16)
+
+    async def _acquire_slot_lock(self, doctor_id: uuid.UUID, day: date) -> None:
+        """Serialize check-then-insert per doctor-day (Postgres advisory lock).
+
+        The application overlap check races under concurrency; the GiST exclusion
+        is the final backstop. This lock additionally guarantees unique daily
+        token numbers. Non-Postgres backends silently skip it.
+        """
+        try:
+            await self.db.execute(
+                text("SELECT pg_advisory_xact_lock(:k)"), {"k": self._slot_lock_key(doctor_id, day)}
+            )
+        except Exception:
+            pass
+
     async def _today_waiting(self, doctor_id: uuid.UUID) -> list:
         """Today's (Dhaka) pending/confirmed appointments, ordered by serial."""
         today = datetime.now(_DHAKA_TZ).date()
@@ -103,6 +124,10 @@ class AppointmentService:
             location = next((item for item in doctor.locations if item.id == data.location_id and item.is_active), None)
             if not location:
                 raise NotFoundException("Selected doctor location not found or inactive")
+
+        # 1b. Serialize per doctor-day so concurrent books can't both pass the check below
+        start_day = data.start_time.date() if isinstance(data.start_time, datetime) else date.today()
+        await self._acquire_slot_lock(data.doctor_id, start_day)
 
         # 2. Check for slot conflict (application layer + DB exclusion trap)
         conflict_query = select(Appointment).where(
@@ -216,6 +241,10 @@ class AppointmentService:
         if appt.status in ["cancelled", "completed"]:
             raise BadRequestException(f"Cannot reschedule appointment in status '{appt.status}'")
 
+        # Serialize per doctor-day BEFORE checking (same race as booking)
+        new_day = data.new_start_time.date() if isinstance(data.new_start_time, datetime) else date.today()
+        await self._acquire_slot_lock(appt.doctor_id, new_day)
+
         # Check collision on new slot
         conflict_query = select(Appointment).where(
             and_(
@@ -325,6 +354,42 @@ class AppointmentService:
                 appointment_id=appt.id, metadata=meta,
             )
         return {"id": str(appt.id), "status": appt.status, "updatedAt": datetime.now(timezone.utc).isoformat()}
+
+    async def verify_for_checkin(self, appointment_id: uuid.UUID, role: str) -> AppointmentVerifyResponse:
+        """Reception check-in: validate a scanned chamber-pass QR code."""
+        if role not in ("doctor", "admin"):
+            raise ForbiddenException("Only doctors and clinic staff can verify chamber passes")
+        appt = await self.get_by_id(appointment_id)
+        if not appt:
+            raise NotFoundException("Appointment not found")
+
+        full_name = appt.patient.name if appt.patient else "Patient"
+        if role == "doctor":
+            shown_name = full_name
+        else:
+            # Admins/reception see a masked name per clinical privacy rules
+            parts = full_name.strip().split()
+            shown_name = " ".join(
+                (p[0] + "*" * max(1, len(p) - 2) + p[-1]) if len(p) > 2 else (p[0] + "*")
+                for p in parts
+            ) or "Patient"
+
+        doc_name = appt.doctor.user.name if (appt.doctor and appt.doctor.user) else "Doctor"
+        return AppointmentVerifyResponse(
+            id=appt.id,
+            token_number=appt.token_number,
+            status=appt.status,
+            valid=appt.status in ("pending", "confirmed"),
+            patient_name=shown_name,
+            doctor_name=doc_name,
+            specialization=appt.doctor.specialization if appt.doctor else "General",
+            facility_name=appt.location.facility_name if appt.location else (appt.doctor.facility_name if appt.doctor else None),
+            chamber_room=appt.location.chamber_room if appt.location else (appt.doctor.chamber_room if appt.doctor else None),
+            start_time=appt.start_time,
+            end_time=appt.end_time,
+            payment_status=appt.payment_status,
+            fee=float(appt.doctor.consultation_fee) if (appt.doctor and appt.doctor.consultation_fee) else 0.0,
+        )
 
     async def get_doctor_queue(self, doctor_id: uuid.UUID, target_date: date, user_role: str) -> DoctorQueueResponse:
         start_of_day = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=timezone.utc)

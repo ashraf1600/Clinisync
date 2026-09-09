@@ -41,3 +41,9 @@ class NotificationReadResponse(CamelModel):
 class MarkAllReadResponse(CamelModel):
     success: bool = True
     marked_count: int
+
+class ReminderRunResponse(CamelModel):
+    checked_24h: int = 0
+    sent_24h: int = 0
+    checked_1h: int = 0
+    sent_1h: int = 0

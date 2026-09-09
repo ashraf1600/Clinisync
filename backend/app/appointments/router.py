@@ -8,7 +8,7 @@ from app.appointments.schemas import (
     AppointmentBookRequest, AppointmentRead, AppointmentRescheduleRequest,
     AppointmentCancelRequest, AppointmentStatusUpdateRequest,
     DoctorQueueResponse, QueuePauseRequest, QueuePauseResponse,
-    QueueResumeResponse
+    QueueResumeResponse, AppointmentVerifyResponse
 )
 from app.appointments.service import AppointmentService
 from app.users.models import User
@@ -76,6 +76,16 @@ async def get_my_appointments(
 ):
     service = AppointmentService(db)
     return await service.get_patient_appointments(current_user.id, filter_type)
+
+@router.get("/{id}/verify", response_model=AppointmentVerifyResponse, status_code=status.HTTP_200_OK)
+async def verify_chamber_pass(
+    id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Reception check-in: validate a scanned chamber-pass QR (doctor/admin only)."""
+    service = AppointmentService(db)
+    return await service.verify_for_checkin(id, current_user.role)
 
 @router.put("/doctor/{doctorId}/queue-pause", response_model=QueuePauseResponse, status_code=status.HTTP_200_OK)
 async def pause_doctor_queue(

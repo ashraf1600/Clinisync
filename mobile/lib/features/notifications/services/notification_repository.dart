@@ -11,6 +11,11 @@ class NotificationRepository {
     return items.map((e) => NotificationModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  Future<int> getUnreadCount() async {
+    final response = await _dio.get('/notifications', queryParameters: {'page': 1, 'pageSize': 1});
+    return (response.data['unreadCount'] ?? 0) as int;
+  }
+
   Future<void> markRead(String id) async {
     await _dio.patch('/notifications/$id/read');
   }

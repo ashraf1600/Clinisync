@@ -1,11 +1,13 @@
 import uuid
-from typing import Annotated
-from fastapi import APIRouter, Depends, Query, status
+from typing import Annotated, Optional
+from fastapi import APIRouter, Depends, Header, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.exceptions import UnauthorizedException
 from app.notifications.schemas import (
     DeviceRegisterRequest, DeviceRead, NotificationListResponse,
-    NotificationReadResponse, MarkAllReadResponse
+    NotificationReadResponse, MarkAllReadResponse, ReminderRunResponse
 )
 from app.notifications.service import NotificationService
 from app.users.models import User
@@ -50,3 +52,15 @@ async def mark_all_notifications_as_read(
 ):
     service = NotificationService(db)
     return await service.mark_all_read(current_user.id)
+
+@notifications_router.post("/send-reminders", response_model=ReminderRunResponse, status_code=status.HTTP_200_OK)
+async def run_due_reminders(
+    cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Cron-triggered 24h/1h reminders. Guarded by shared secret (no login needed)."""
+    expected = settings.CRON_SECRET_KEY
+    if not expected or expected == "change-me-in-production" or cron_secret != expected:
+        raise UnauthorizedException("Invalid cron secret")
+    service = NotificationService(db)
+    return await service.send_due_reminders()

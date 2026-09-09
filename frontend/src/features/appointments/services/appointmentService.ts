@@ -1,6 +1,28 @@
 import { apiClient } from '../../../services/api';
 import { Appointment, BookAppointmentPayload, DoctorQueueResponse } from '../types';
 
+export interface VerifyPassResult {
+  id: string;
+  tokenNumber: number;
+  status: string;
+  valid: boolean;
+  patientName: string;
+  doctorName: string;
+  specialization: string;
+  facilityName?: string;
+  chamberRoom?: string;
+  startTime: string;
+  endTime: string;
+  paymentStatus: string;
+  fee: number;
+}
+
+/** Deep link encoded in the chamber-pass QR, opened by reception scanners. */
+export const getPassVerifyUrl = (appointmentId: string): string => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/#verify/${appointmentId}`;
+}
+
 export const appointmentService = {
   book: async (payload: BookAppointmentPayload): Promise<Appointment> => {
     const idempotencyKey = crypto.randomUUID();
@@ -15,6 +37,17 @@ export const appointmentService = {
   },
   cancel: async (id: string, reason: string = 'User cancellation') => {
     const res = await apiClient.put(`/appointments/${id}/cancel`, { reason });
+    return res.data;
+  },
+  reschedule: async (id: string, newStartTime: string, newEndTime: string) => {
+    const idempotencyKey = crypto.randomUUID();
+    const res = await apiClient.put(`/appointments/${id}/reschedule`, { newStartTime, newEndTime }, {
+      headers: { 'Idempotency-Key': idempotencyKey }
+    });
+    return res.data;
+  },
+  verifyPass: async (id: string): Promise<VerifyPassResult> => {
+    const res = await apiClient.get(`/appointments/${id}/verify`);
     return res.data;
   },
   getDoctorQueue: async (doctorId: string, date: string): Promise<DoctorQueueResponse> => {

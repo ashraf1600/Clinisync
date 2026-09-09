@@ -30,7 +30,7 @@ class QueueStatusBadge extends StatelessWidget {
         label = 'EMPTY (BREAK)';
         break;
       case 'completed':
-        bg = Colors.slate.shade100;
+        bg = Colors.blueGrey.shade50;
         text = AppColors.textSecondary;
         label = 'COMPLETED';
         break;

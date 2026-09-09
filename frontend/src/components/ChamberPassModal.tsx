@@ -1,6 +1,6 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
-  QrCode,
   Printer,
   X,
   MapPin,
@@ -12,6 +12,7 @@ import {
   Stethoscope,
 } from 'lucide-react';
 import { Appointment } from '../features/appointments/types';
+import { getPassVerifyUrl } from '../features/appointments/services/appointmentService';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -88,12 +89,11 @@ export const ChamberPassModal: React.FC<ChamberPassModalProps> = ({ appt, onClos
           <h3 className="text-lg font-black text-slate-900 mt-2">{appt.doctorName}</h3>
           <p className="text-xs text-teal-700 font-bold">{appt.specialization}</p>
 
+          {/* Real QR: encodes the reception verify link for this exact appointment */}
           <div className="my-4 p-3 bg-slate-50 rounded-2xl border border-slate-200 inline-block shadow-inner">
-            <div className="w-32 h-32 bg-white p-2 rounded-xl flex items-center justify-center border border-slate-200 mx-auto">
-              <div className="w-full h-full border-2 border-dashed border-slate-800 rounded flex flex-col items-center justify-center text-center p-1">
-                <QrCode className="w-14 h-14 text-slate-900" />
-                <span className="text-[9px] font-mono font-bold text-slate-700 mt-1">TOKEN-{appt.tokenNumber}</span>
-              </div>
+            <div className="bg-white p-2 rounded-xl border border-slate-200 mx-auto w-fit">
+              <QRCodeSVG value={getPassVerifyUrl(appt.id)} size={128} level="M" />
+              <div className="text-[9px] font-mono font-bold text-slate-700 mt-1 text-center">TOKEN-{appt.tokenNumber}</div>
             </div>
             <span className="text-[9px] uppercase font-black text-slate-400 block mt-1 tracking-wider">
               SCAN AT CLINIC RECEPTION

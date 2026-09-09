@@ -1,0 +1,27 @@
+name: Appointment Reminders
+
+on:
+  schedule:
+    # Every 20 minutes — the endpoint itself windows/dedupes 24h & 1h reminders
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    name: Send Due 24h/1h Reminders
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Reminder Run
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL || 'https://clinisync-api.onrender.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET repo secret is not set — skipping reminder run."
+            echo "Set it to the same value as the backend CRON_SECRET_KEY env var."
+            exit 0
+          fi
+          curl -sS -X POST "${API_BASE_URL}/api/v1/notifications/send-reminders" \
+            -H "X-Cron-Secret: ${CRON_SECRET}" \
+            -H "Content-Type: application/json"
+          echo ""

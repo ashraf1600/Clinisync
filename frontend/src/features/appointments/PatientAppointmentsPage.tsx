@@ -20,7 +20,9 @@ import {
   User
 } from 'lucide-react';
 import { appointmentService } from './services/appointmentService';
+import { availabilityService } from '../availability/services/availabilityService';
 import { Appointment, DoctorQueueResponse } from './types';
+import { TimeSlot } from '../availability/types';
 import { ChamberPassModal } from '../../components/ChamberPassModal';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -46,6 +48,59 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelModalAppt, setCancelModalAppt] = useState<Appointment | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('Schedule clash / Emergency');
+
+  // Reschedule flow (atomic cancel-and-rebook server-side)
+  const [reschedAppt, setReschedAppt] = useState<Appointment | null>(null);
+  const [reschedDate, setReschedDate] = useState<string>('');
+  const [reschedSlots, setReschedSlots] = useState<TimeSlot[]>([]);
+  const [reschedSlot, setReschedSlot] = useState<TimeSlot | null>(null);
+  const [reschedLoading, setReschedLoading] = useState(false);
+  const [reschedBusy, setReschedBusy] = useState(false);
+  const [reschedError, setReschedError] = useState<string | null>(null);
+
+  const openReschedule = (appt: Appointment) => {
+    const d = new Date(appt.startTime);
+    setReschedAppt(appt);
+    setReschedSlot(null);
+    setReschedError(null);
+    setReschedDate(toLocalDateStr(d));
+    loadReschedSlots(appt.doctorId, toLocalDateStr(d));
+  };
+
+  const loadReschedSlots = async (doctorId: string, dateStr: string) => {
+    try {
+      setReschedLoading(true);
+      setReschedError(null);
+      setReschedSlot(null);
+      const res = await availabilityService.getSlots(doctorId, dateStr);
+      setReschedSlots(res.slots || []);
+    } catch {
+      setReschedError(language === 'bn' ? 'স্লট লোড করা যায়নি।' : 'Could not load slots for this date.');
+      setReschedSlots([]);
+    } finally {
+      setReschedLoading(false);
+    }
+  };
+
+  const confirmReschedule = async () => {
+    if (!reschedAppt || !reschedSlot) return;
+    try {
+      setReschedBusy(true);
+      setReschedError(null);
+      await appointmentService.reschedule(reschedAppt.id, reschedSlot.startTime, reschedSlot.endTime);
+      setReschedAppt(null);
+      await fetchAppointments();
+    } catch (e: any) {
+      if (e.response?.status === 409) {
+        setReschedError(language === 'bn' ? '⚠️ এই স্লটটি এইমাত্র বুক হয়ে গেছে। অন্য সময় বেছে নিন।' : '⚠️ This slot was just taken. Please pick another.');
+        if (reschedAppt) loadReschedSlots(reschedAppt.doctorId, reschedDate);
+      } else {
+        setReschedError(e.response?.data?.error?.message || e.message || 'Reschedule failed');
+      }
+    } finally {
+      setReschedBusy(false);
+    }
+  };
 
   // Local calendar date (avoids UTC off-by-one near midnight)
   const toLocalDateStr = (d: Date): string => {
@@ -318,7 +373,7 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
                   </div>
                 </div>
 
-                {/* Actions: View Slip & Cancel */}
+                {/* Actions: View Slip, Reschedule & Cancel */}
                 <div className="flex items-center space-x-3 shrink-0 self-end md:self-center">
                   <button
                     onClick={() => setSelectedPass(appt)}
@@ -327,6 +382,16 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
                     <QrCode className="w-3.5 h-3.5" />
                     <span>{language === 'bn' ? 'চেম্বার স্লিপ ও কিউআর' : 'Chamber Slip & QR'}</span>
                   </button>
+
+                  {filter === 'upcoming' && (appt.status === 'confirmed' || appt.status === 'pending') && (
+                    <button
+                      onClick={() => openReschedule(appt)}
+                      className="px-3 py-2 border border-blue-200 text-blue-700 hover:bg-blue-50 rounded-xl text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>{language === 'bn' ? 'সময় বদলান' : 'Reschedule'}</span>
+                    </button>
+                  )}
 
                   {appt.status !== 'cancelled' && appt.status !== 'completed' && (
                     <button
@@ -347,6 +412,99 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
       {/* Official Chamber Pass / QR Slip Modal (shared component) */}
       {selectedPass && (
         <ChamberPassModal appt={selectedPass} onClose={() => setSelectedPass(null)} />
+      )}
+
+      {/* Reschedule Modal: pick a new date + slot (atomic server-side swap) */}
+      {reschedAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[92vh] overflow-y-auto p-6 shadow-2xl relative border border-slate-100 space-y-4">
+            <button
+              onClick={() => setReschedAppt(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
+                {language === 'bn' ? 'সিরিয়ালের সময় পরিবর্তন' : 'Reschedule Serial'}
+              </span>
+              <h3 className="text-base font-black text-slate-900 mt-2">
+                #{reschedAppt.tokenNumber} · {reschedAppt.doctorName}
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {language === 'bn' ? 'বর্তমান:' : 'Current:'} {new Date(reschedAppt.startTime).toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                {language === 'bn' ? 'নতুন তারিখ' : 'New date'}
+              </label>
+              <input
+                type="date"
+                min={todayStr}
+                value={reschedDate}
+                onChange={(e) => {
+                  setReschedDate(e.target.value);
+                  if (reschedAppt && e.target.value) loadReschedSlots(reschedAppt.doctorId, e.target.value);
+                }}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                {language === 'bn' ? 'নতুন সময়' : 'New time slot'}
+              </label>
+              {reschedLoading ? (
+                <p className="text-xs text-slate-500 py-4 text-center">{language === 'bn' ? 'স্লট লোড হচ্ছে...' : 'Loading slots...'}</p>
+              ) : reschedSlots.filter((s) => s.isAvailable).length === 0 ? (
+                <p className="text-xs text-slate-500 py-4 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  {language === 'bn' ? 'এই তারিখে ফাঁকা স্লট নেই। অন্য দিন বেছে নিন।' : 'No free slots on this date. Pick another day.'}
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                  {reschedSlots.filter((s) => s.isAvailable).map((s) => {
+                    const sel = reschedSlot?.startTime === s.startTime;
+                    return (
+                      <button
+                        key={s.startTime}
+                        onClick={() => setReschedSlot(s)}
+                        className={`py-2 rounded-xl text-xs font-bold transition border cursor-pointer ${sel ? 'bg-blue-700 text-white border-blue-700' : 'bg-white border-slate-200 hover:border-blue-400'}`}
+                      >
+                        {new Date(s.startTime).toLocaleTimeString(language === 'bn' ? 'bn-BD' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {reschedError && (
+              <p className="text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-xl p-2.5">{reschedError}</p>
+            )}
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setReschedAppt(null)}
+                className="flex-1 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                {language === 'bn' ? 'বাদ দিন' : 'Cancel'}
+              </button>
+              <button
+                onClick={confirmReschedule}
+                disabled={!reschedSlot || reschedBusy}
+                className="flex-1 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition shadow cursor-pointer disabled:opacity-50"
+              >
+                {reschedBusy ? (language === 'bn' ? 'বদলানো হচ্ছে...' : 'Moving...') : (language === 'bn' ? 'নিশ্চিত করুন' : 'Confirm Move')}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 text-center">
+              {language === 'bn' ? 'পুরনো সিরিয়াল স্বয়ংক্রিয়ভাবে ছেড়ে নতুন সময়ে বুক হবে।' : 'Old slot is released automatically when the new one books.'}
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Cancellation Modal */}
