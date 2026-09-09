@@ -536,37 +536,49 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                 <div className="space-y-6">
                   {/* Highlighted Big Status Counters */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Currently Running Serial Card */}
+                    {/* Currently Running Serial Card (live only for today) */}
                     <div className="bg-gradient-to-br from-teal-700 to-slate-900 text-white rounded-3xl p-5 shadow-md flex flex-col justify-between relative overflow-hidden">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] uppercase font-black tracking-widest text-teal-300">
-                          {language === 'bn' ? 'চলমান সিরিয়াল' : 'CURRENT RUNNING'}
+                          {isFutureTrack
+                            ? (language === 'bn' ? 'নির্ধারিত সিরিয়াল' : 'SCHEDULED SERIALS')
+                            : (language === 'bn' ? 'চলমান সিরিয়াল' : 'CURRENT RUNNING')}
                         </span>
-                        <span className="flex items-center space-x-1 bg-teal-500/30 text-teal-200 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-teal-400/30">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          <span>LIVE</span>
-                        </span>
+                        {!isFutureTrack && (
+                          <span className="flex items-center space-x-1 bg-teal-500/30 text-teal-200 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-teal-400/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                            <span>LIVE</span>
+                          </span>
+                        )}
                       </div>
 
                       <div className="my-3">
                         <div className="text-4xl sm:text-5xl font-black tracking-tight text-white">
-                          {runningSerial ? `#${runningSerial}` : '—'}
+                          {isFutureTrack ? `#${mySerial ?? '—'}` : (runningSerial ? `#${runningSerial}` : '—')}
                         </div>
                         <p className="text-xs text-teal-200 font-medium mt-1 truncate">
-                          {queueData?.currentRunningPatientName || (language === 'bn' ? 'চেম্বার প্রস্তুত' : 'Ready for Patient')}
+                          {isFutureTrack
+                            ? (language === 'bn' ? `লাইভ ${fmtDay(trackDate)} সক্রিয় হবে` : `Live starts ${fmtDay(trackDate)}`)
+                            : (queueData?.currentRunningPatientName || (language === 'bn' ? 'চেম্বার প্রস্তুত' : 'Ready for Patient'))}
                         </p>
                       </div>
 
                       <div className="text-[11px] text-teal-300 font-bold flex items-center space-x-1">
                         <Activity className="w-3.5 h-3.5" />
-                        <span>{language === 'bn' ? 'পরামর্শ চলছে (In Chamber)' : 'In Consultation'}</span>
+                        <span>
+                          {isFutureTrack
+                            ? (language === 'bn' ? 'আপনার বুকড সিরিয়াল' : 'Your booked serial')
+                            : (language === 'bn' ? 'পরামর্শ চলছে (In Chamber)' : 'In Consultation')}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Waiting Patients Count */}
+                    {/* Waiting / Booked Count */}
                     <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
                       <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">
-                        {language === 'bn' ? 'অপেক্ষমাণ রোগী' : 'WAITING IN QUEUE'}
+                        {isFutureTrack
+                          ? (language === 'bn' ? 'বুকড সিরিয়াল' : 'BOOKED SERIALS')
+                          : (language === 'bn' ? 'অপেক্ষমাণ রোগী' : 'WAITING IN QUEUE')}
                       </span>
                       <div className="my-2">
                         <div className="text-3xl sm:text-4xl font-black text-amber-600">
@@ -623,7 +635,8 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                     <div className="space-y-2.5">
                       {queueItems.map((item) => {
                         const serial = item.serial ?? item.tokenNumber;
-                        const isCurrent = serial === runningSerial || item.status === 'in_consultation' || item.status === 'in_chamber';
+                        // "In chamber" can only be true for today's live queue, never a future day
+                        const isCurrent = !isFutureTrack && (serial === runningSerial || item.status === 'in_consultation' || item.status === 'in_chamber');
                         const isDone = item.status === 'completed';
                         const isMyToken = myApptForDoctor != null && item.id === myApptForDoctor.id;
                         const aheadForRow =
@@ -697,7 +710,9 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                                 </span>
                               ) : (
                                 <span className="text-amber-700 text-[10px] font-extrabold bg-amber-100/80 px-2.5 py-1 rounded-full border border-amber-200">
-                                  {language === 'bn' ? 'অপেক্ষমাণ' : 'Waiting'}
+                                  {isFutureTrack
+                                    ? (language === 'bn' ? 'বুকড' : 'Booked')
+                                    : (language === 'bn' ? 'অপেক্ষমাণ' : 'Waiting')}
                                 </span>
                               )}
                             </div>

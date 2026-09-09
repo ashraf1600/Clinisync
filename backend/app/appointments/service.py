@@ -19,6 +19,13 @@ from app.notifications.models import Notification
 # Global memory state for queue breaks
 queue_pause_registry = {}
 
+try:
+    from zoneinfo import ZoneInfo
+    _DHAKA_TZ = ZoneInfo("Asia/Dhaka")
+except Exception:
+    # Fallback for containers without tzdata: fixed UTC+6 (no DST in Bangladesh)
+    _DHAKA_TZ = timezone(timedelta(hours=6))
+
 class AppointmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -261,7 +268,11 @@ class AppointmentService:
         res = await self.db.execute(query)
         appts = res.scalars().all()
 
-        # Check pause registry
+        # Dhaka calendar reference: running/paused states only exist for today or past days
+        dhaka_today = datetime.now(_DHAKA_TZ).date()
+        is_future_day = target_date > dhaka_today
+
+        # Check pause registry (only meaningful for today's live queue)
         is_paused = False
         pause_message = None
         pause_data = queue_pause_registry.get(str(doctor_id))
@@ -338,16 +349,25 @@ class AppointmentService:
             )
 
         # Determine chamber status
+        # A "running" serial only exists for today (or past days). For future dates
+        # nobody can be in consultation, so never promote a waiting token.
+        # A break taken today must not freeze future-day views
+        if is_future_day:
+            is_paused = False
+            pause_message = None
         if is_paused:
             chamber_status = "PAUSED (BREAK)"
         elif current_running_serial is not None:
             chamber_status = "IN_CONSULTATION"
         elif waiting_count > 0:
-            chamber_status = "ACTIVE"
-            # If no one is explicitly marked in_consultation yet, the next waiting token is ready
-            first_waiting = next((a for a in appts if a.status in ["confirmed", "pending"]), None)
-            if first_waiting:
-                current_running_serial = first_waiting.token_number
+            if is_future_day:
+                chamber_status = "SCHEDULED"
+            else:
+                chamber_status = "ACTIVE"
+                # If no one is explicitly marked in_consultation yet, the next waiting token is ready
+                first_waiting = next((a for a in appts if a.status in ["confirmed", "pending"]), None)
+                if first_waiting:
+                    current_running_serial = first_waiting.token_number
         elif completed_count > 0 and len(appts) == completed_count:
             chamber_status = "COMPLETED_TODAY"
         else:
