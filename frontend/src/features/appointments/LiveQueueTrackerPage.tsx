@@ -26,6 +26,7 @@ import { doctorService } from '../doctors/services/doctorService';
 import { appointmentService } from './services/appointmentService';
 import { Doctor } from '../doctors/types';
 import { DoctorQueueResponse, Appointment } from './types';
+import { DoctorAvatar } from '../../components/DoctorAvatar';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -46,7 +47,19 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [myAppointments, setMyAppointments] = useState<Appointment[]>([]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Local calendar date (avoids UTC off-by-one near midnight)
+  const toLocalDateStr = (d: Date = new Date()): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const todayStr = toLocalDateStr();
+
+  // Tracked queue date: today by default; jumps to the user's serial day for future bookings
+  const [trackDate, setTrackDate] = useState<string>(todayStr);
+  const isFutureTrack = trackDate !== todayStr;
 
   // Dynamic live chamber queue for the selected doctor
   const [queueData, setQueueData] = useState<DoctorQueueResponse | null>(null);
@@ -87,13 +100,13 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
     }
   };
 
-  // 2. Fetch live queue whenever selected doctor changes
-  const fetchDoctorQueue = async (docId: string, showSpinner = false) => {
-    if (!docId) return;
+  // 2. Fetch live queue whenever selected doctor or tracked date changes
+  const fetchDoctorQueue = async (docId: string, dateStr: string, showSpinner = false) => {
+    if (!docId || !dateStr) return;
     try {
       if (showSpinner) setIsLoadingQueue(true);
       setIsRefreshing(true);
-      const data = await appointmentService.getDoctorQueue(docId, todayStr);
+      const data = await appointmentService.getDoctorQueue(docId, dateStr);
       setQueueData(data);
     } catch (err) {
       console.error('Failed to fetch doctor live queue', err);
@@ -105,18 +118,19 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
 
   useEffect(() => {
     if (selectedDoctorId) {
-      fetchDoctorQueue(selectedDoctorId, true);
+      setTrackDate(todayStr);
+      fetchDoctorQueue(selectedDoctorId, todayStr, true);
     }
   }, [selectedDoctorId]);
 
-  // 3. Auto-polling every 12 seconds
+  // 3. Auto-polling every 12 seconds (live only for today's queue)
   useEffect(() => {
-    if (!autoRefresh || !selectedDoctorId) return;
+    if (!autoRefresh || !selectedDoctorId || isFutureTrack) return;
     const interval = setInterval(() => {
-      fetchDoctorQueue(selectedDoctorId, false);
+      fetchDoctorQueue(selectedDoctorId, trackDate, false);
     }, 12000);
     return () => clearInterval(interval);
-  }, [autoRefresh, selectedDoctorId]);
+  }, [autoRefresh, selectedDoctorId, trackDate, isFutureTrack]);
 
   // Filtered doctors list based on search query
   const filteredDoctors = allDoctors.filter((doc) => {
@@ -132,10 +146,19 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
 
   const activeDoctor: Doctor | undefined = allDoctors.find((d) => d.id === selectedDoctorId) || allDoctors[0];
 
-  // Check if current user has an active serial with this selected doctor today
-  const myApptForDoctor = myAppointments.find(
+  // All non-cancelled bookings of the user with the selected doctor (any date)
+  const myApptsForDoctor = myAppointments.filter(
     (a) => a.doctorId === selectedDoctorId && a.status !== 'cancelled'
   );
+  const apptDateStr = (iso?: string): string | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : toLocalDateStr(d);
+  };
+  // Prefer the booking that belongs to the tracked date; fall back to the earliest upcoming
+  const myApptForDoctor =
+    myApptsForDoctor.find((a) => apptDateStr(a.startTime) === trackDate) || myApptsForDoctor[0];
+  const myApptDate = myApptForDoctor ? apptDateStr(myApptForDoctor.startTime) : null;
 
   const totalAppts = queueData?.totalAppointments || 0;
   const runningSerial = queueData?.currentRunningSerial;
@@ -143,6 +166,43 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
   const completedCount = queueData?.completedCount || 0;
   const isPaused = queueData?.isPaused || false;
   const queueItems = queueData?.items || queueData?.queue || [];
+
+  // "Mine" matched by appointment id (token numbers repeat across days)
+  const myQueueItem = myApptForDoctor ? queueItems.find((i) => i.id === myApptForDoctor.id) : undefined;
+  const mySerial = myQueueItem?.serial ?? myQueueItem?.tokenNumber ?? myApptForDoctor?.tokenNumber;
+
+  // Avg consultation minutes derived from real slot durations (fallback 15)
+  const avgSlotMin = (() => {
+    const durs = queueItems
+      .map((i) => (new Date(i.endTime).getTime() - new Date(i.startTime).getTime()) / 60000)
+      .filter((n) => n > 0 && n < 240);
+    if (durs.length === 0) return 15;
+    return Math.max(5, Math.round(durs.reduce((a, b) => a + b, 0) / durs.length));
+  })();
+
+  const runningItem = runningSerial != null
+    ? queueItems.find((i) => (i.serial ?? i.tokenNumber) === runningSerial)
+    : undefined;
+  const aheadCount =
+    mySerial != null && runningSerial != null && !isFutureTrack
+      ? Math.max(0, mySerial - runningSerial)
+      : null;
+  // Approx turn clock-time: running slot start + ahead × avg duration (else booked time)
+  const approxTurnDate =
+    aheadCount != null && aheadCount > 0 && runningItem
+      ? new Date(new Date(runningItem.startTime).getTime() + aheadCount * avgSlotMin * 60000)
+      : myQueueItem
+      ? new Date(myQueueItem.startTime)
+      : null;
+  const estWaitMin = aheadCount != null ? aheadCount * avgSlotMin : null;
+  const fmtTime = (d: Date | null): string =>
+    d && !isNaN(d.getTime())
+      ? d.toLocaleTimeString(language === 'bn' ? 'bn-BD' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+      : '—';
+  const fmtDay = (dateStr: string): string =>
+    new Date(`${dateStr}T00:00:00`).toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+    });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -173,7 +233,7 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
           {/* Quick Refresh & Auto-Sync Controls */}
           <div className="flex items-center space-x-3 bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/60 self-start md:self-auto">
             <button
-              onClick={() => fetchDoctorQueue(selectedDoctorId, true)}
+              onClick={() => fetchDoctorQueue(selectedDoctorId, trackDate, true)}
               disabled={isRefreshing}
               className="flex items-center space-x-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
             >
@@ -255,13 +315,7 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                       }`}
                     >
                       <div className="flex items-center space-x-3 truncate">
-                        <div className="w-11 h-11 rounded-xl bg-teal-100/70 border border-teal-200 flex items-center justify-center text-lg font-bold text-teal-800 shrink-0 overflow-hidden">
-                          {doc.profilePhotoUrl ? (
-                            <img src={doc.profilePhotoUrl} alt={doc.name} className="w-full h-full object-cover" />
-                          ) : (
-                            '👨‍⚕️'
-                          )}
-                        </div>
+                        <DoctorAvatar name={doc.name} profilePhotoUrl={doc.profilePhotoUrl} sizeClass="w-11 h-11 text-sm" />
 
                         <div className="truncate">
                           <div className="flex items-center space-x-1.5 truncate">
@@ -293,13 +347,7 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
               {/* Doctor Details Header Card */}
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-start space-x-4">
-                  <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-2xl font-bold text-teal-700 shrink-0 overflow-hidden shadow-sm">
-                    {activeDoctor.profilePhotoUrl ? (
-                      <img src={activeDoctor.profilePhotoUrl} alt={activeDoctor.name} className="w-full h-full object-cover" />
-                    ) : (
-                      '👨‍⚕️'
-                    )}
-                  </div>
+                  <DoctorAvatar name={activeDoctor.name} profilePhotoUrl={activeDoctor.profilePhotoUrl} sizeClass="w-16 h-16 text-xl" />
                   <div>
                     <div className="flex items-center space-x-2">
                       <h2 className="text-lg font-black text-slate-900">{activeDoctor.name}</h2>
@@ -332,25 +380,29 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                 </div>
               </div>
 
-              {/* Personal Active Booking Alert (If Logged-in Patient has a serial with this doctor) */}
-              {myApptForDoctor && (
+              {/* Personal Active Booking Alert (serial with this doctor) */}
+              {myApptForDoctor && mySerial != null && (
                 <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl p-5 text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-3.5">
                     <div className="w-12 h-12 rounded-2xl bg-white text-amber-600 flex flex-col items-center justify-center font-black shrink-0 shadow">
                       <span className="text-[9px] uppercase tracking-wider">SERIAL</span>
-                      <span className="text-xl leading-none">#{myApptForDoctor.tokenNumber}</span>
+                      <span className="text-xl leading-none">#{mySerial}</span>
                     </div>
                     <div>
                       <h3 className="text-sm font-extrabold text-white">
                         {language === 'bn' ? 'এই চেম্বারে আপনার সিরিয়াল বুক করা আছে!' : 'You have a booked serial in this chamber!'}
                       </h3>
                       <p className="text-xs text-amber-100 font-medium mt-0.5">
-                        {runningSerial === myApptForDoctor.tokenNumber
-                          ? (language === 'bn' ? '🎉 আপনার সিরিয়াল চলছে! এখনই চেম্বারে প্রবেশ করুন।' : '🎉 It is your turn! Please enter the chamber now.')
-                          : runningSerial && myApptForDoctor.tokenNumber > runningSerial
+                        {myApptDate && myApptDate !== todayStr
                           ? (language === 'bn'
-                              ? `আপনার পূর্বে অপেক্ষমাণ: ${myApptForDoctor.tokenNumber - runningSerial} জন রোগী (আনুমানিক অপেক্ষা: ${(myApptForDoctor.tokenNumber - runningSerial) * 12} মিনিট)`
-                              : `Patients ahead: ${myApptForDoctor.tokenNumber - runningSerial} (Est. wait: ${(myApptForDoctor.tokenNumber - runningSerial) * 12} mins)`)
+                              ? `📅 আপনার সিরিয়াল ${fmtDay(myApptDate)} তারিখের (${myApptDate}) · সময় ≈ ${myQueueItem ? fmtTime(new Date(myQueueItem.startTime)) : '—'}`
+                              : `📅 Your serial is on ${fmtDay(myApptDate)} (${myApptDate}) · booked time ≈ ${myQueueItem ? fmtTime(new Date(myQueueItem.startTime)) : '—'}`)
+                          : aheadCount === 0
+                          ? (language === 'bn' ? '🎉 আপনার সিরিয়াল চলছে! এখনই চেম্বারে প্রবেশ করুন।' : '🎉 It is your turn! Please enter the chamber now.')
+                          : aheadCount != null && estWaitMin != null
+                          ? (language === 'bn'
+                              ? `আপনার আগে ${aheadCount} জন · আনুমানিক অপেক্ষা ~${estWaitMin} মিনিট · সম্ভাব্য ডাক ≈ ${fmtTime(approxTurnDate)}`
+                              : `${aheadCount} ahead · est. wait ~${estWaitMin} min · your turn ≈ ${fmtTime(approxTurnDate)}`)
                           : (language === 'bn' ? 'সিরিয়াল নিশ্চিতকৃত অবস্থায় আছে।' : 'Serial is confirmed.')}
                       </p>
                     </div>
@@ -363,6 +415,63 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                     <QrCode className="w-3.5 h-3.5 text-amber-700" />
                     <span>{language === 'bn' ? 'আমার চেম্বার স্লিপ' : 'View Chamber Pass'}</span>
                   </button>
+                </div>
+              )}
+
+              {/* Future serial nudge: booking exists on another day while tracking today */}
+              {myApptDate && myApptDate !== todayStr && !isFutureTrack && (
+                <button
+                  onClick={() => {
+                    setTrackDate(myApptDate);
+                    fetchDoctorQueue(selectedDoctorId, myApptDate, true);
+                  }}
+                  className="w-full p-4 rounded-3xl bg-blue-700 hover:bg-blue-600 text-white shadow flex items-center justify-between transition cursor-pointer"
+                >
+                  <span className="text-xs font-bold">
+                    {language === 'bn'
+                      ? `📅 আপনার সিরিয়াল #${mySerial} ${fmtDay(myApptDate)} (${myApptDate}) — ওই দিনের কিউ দেখুন`
+                      : `📅 Your serial #${mySerial} is on ${fmtDay(myApptDate)} (${myApptDate}) — view that day's queue`}
+                  </span>
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </button>
+              )}
+
+              {/* Tracked-date selector: Today vs my serial day */}
+              {myApptDate && myApptDate !== todayStr && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      setTrackDate(todayStr);
+                      fetchDoctorQueue(selectedDoctorId, todayStr, true);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                      !isFutureTrack
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {language === 'bn' ? 'আজকের লাইভ কিউ' : 'Today Live'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTrackDate(myApptDate);
+                      fetchDoctorQueue(selectedDoctorId, myApptDate, true);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                      isFutureTrack
+                        ? 'bg-amber-500 text-white border-amber-500'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {language === 'bn' ? `আমার সিরিয়াল · ${fmtDay(myApptDate)}` : `My serial day · ${fmtDay(myApptDate)}`}
+                  </button>
+                  {isFutureTrack && (
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {language === 'bn'
+                        ? 'লাইভ চলমান সিরিয়াল ওই দিন সক্রিয় হবে'
+                        : 'Live running serial activates on that day'}
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -399,7 +508,9 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                       {language === 'bn' ? 'চেম্বার খালি · কোনো চলমান সিরিয়াল নেই' : 'Chamber Idle · No Active Serials'}
                     </span>
                     <h3 className="text-base sm:text-lg font-black text-slate-800 pt-2">
-                      {language === 'bn' ? 'আজকের জন্য কোনো রোগী বা সিরিয়াল চলমান নেই' : 'No active serial or patients in queue today'}
+                      {isFutureTrack
+                        ? (language === 'bn' ? `${fmtDay(trackDate)} (${trackDate}) — এখনো কোনো সিরিয়াল বুকিং নেই` : `No serials booked for ${fmtDay(trackDate)} (${trackDate}) yet`)
+                        : (language === 'bn' ? 'আজকের জন্য কোনো রোগী বা সিরিয়াল চলমান নেই' : 'No active serial or patients in queue today')}
                     </h3>
                     <p className="text-xs text-slate-500">
                       {language === 'bn'
@@ -462,7 +573,7 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                           {waitingCount} <span className="text-xs font-bold text-slate-400">{language === 'bn' ? 'জন' : 'patients'}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                          {language === 'bn' ? `গড় অপেক্ষার সময়: ~${waitingCount * 12} মিনিট` : `Est. remaining: ~${waitingCount * 12} mins`}
+                          {language === 'bn' ? `গড় অপেক্ষার সময়: ~${waitingCount * avgSlotMin} মিনিট` : `Est. remaining: ~${waitingCount * avgSlotMin} mins`}
                         </p>
                       </div>
                       <div className="text-[11px] text-slate-400 font-bold flex items-center space-x-1">
@@ -496,7 +607,9 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                       <div>
                         <h3 className="text-sm font-extrabold text-slate-900">
-                          {language === 'bn' ? 'আজকের চেম্বার সিরিয়াল তালিকা (Queue Order)' : 'Today\'s Patient Queue Order'}
+                          {isFutureTrack
+                            ? (language === 'bn' ? `${fmtDay(trackDate)}-এর সিরিয়াল তালিকা` : `Queue for ${fmtDay(trackDate)} (${trackDate})`)
+                            : (language === 'bn' ? 'আজকের চেম্বার সিরিয়াল তালিকা (Queue Order)' : 'Today\'s Patient Queue Order')}
                         </h3>
                         <p className="text-[11px] text-slate-400">
                           {language === 'bn' ? 'গোপনীয়তা রক্ষার্থে রোগীর নাম সুরক্ষিতভাবে আড়াল করা আছে' : 'Patient names are privacy-masked for public tracking'}
@@ -509,9 +622,15 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
 
                     <div className="space-y-2.5">
                       {queueItems.map((item) => {
-                        const isCurrent = item.serial === runningSerial || item.status === 'in_consultation' || item.status === 'in_chamber';
+                        const serial = item.serial ?? item.tokenNumber;
+                        const isCurrent = serial === runningSerial || item.status === 'in_consultation' || item.status === 'in_chamber';
                         const isDone = item.status === 'completed';
-                        const isMyToken = myApptForDoctor && myApptForDoctor.tokenNumber === item.serial;
+                        const isMyToken = myApptForDoctor != null && item.id === myApptForDoctor.id;
+                        const aheadForRow =
+                          isMyToken && aheadCount != null ? aheadCount
+                          : runningSerial != null && serial != null && !isFutureTrack && serial > runningSerial
+                          ? serial - runningSerial
+                          : null;
 
                         return (
                           <div
@@ -555,6 +674,11 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
                                 </div>
                                 <p className="text-[11px] text-slate-400 font-medium">
                                   {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {item.visitType === 'followup' ? (language === 'bn' ? 'ফলো-আপ' : 'Followup') : (language === 'bn' ? 'নতুন রোগী' : 'New Patient')}
+                                  {aheadForRow != null && aheadForRow > 0 && !isDone && (
+                                    <span className="font-bold text-teal-700">
+                                      {' '}· {aheadForRow} {language === 'bn' ? 'জন পরে' : 'after running'} · ≈{aheadForRow * avgSlotMin} {language === 'bn' ? 'মিনিট' : 'min'}
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             </div>
