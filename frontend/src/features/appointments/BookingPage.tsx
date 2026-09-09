@@ -68,10 +68,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
     }
   }, [currentDoctor]);
 
+  const isUuid = (id?: string | null): boolean => {
+    if (!id || id === 'default' || id === '') return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  };
+
   // Load dynamic 14-day schedule when doctor or chamber location changes
   useEffect(() => {
     if (currentDoctor) {
-      loadDoctorSchedule(currentDoctor.id, selectedChamber?.id);
+      const validLocId = isUuid(selectedChamber?.id) ? selectedChamber?.id : undefined;
+      loadDoctorSchedule(currentDoctor.id, validLocId);
     }
   }, [currentDoctor, selectedChamber?.id]);
 
@@ -80,7 +86,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
       setLoadingSlots(true);
       setErrorMessage(null);
       setSelectedSlot(null);
-      const res = await availabilityService.getDoctorSchedule(doctorId, 14, undefined, locationId);
+      const validLocId = isUuid(locationId) ? locationId : undefined;
+      const res = await availabilityService.getDoctorSchedule(doctorId, 14, undefined, validLocId);
       setSchedule(res);
 
       // Default selected day: first day with available slots or today
@@ -97,7 +104,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
     } catch (e: any) {
       console.warn('Could not load multi-day schedule, falling back to single date query:', e);
       // Fallback to single date query
-      loadSingleDateSlots(doctorId, selectedDate, locationId);
+      const validLocId = isUuid(locationId) ? locationId : undefined;
+      loadSingleDateSlots(doctorId, selectedDate, validLocId);
     } finally {
       setLoadingSlots(false);
     }
@@ -108,7 +116,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
       setLoadingSlots(true);
       setErrorMessage(null);
       setSelectedSlot(null);
-      const res = await availabilityService.getSlots(doctorId, dateStr, locationId);
+      const validLocId = isUuid(locationId) ? locationId : undefined;
+      const res = await availabilityService.getSlots(doctorId, dateStr, validLocId);
       setSlots(res.slots || []);
     } catch (e: any) {
       setErrorMessage('Could not load availability slots for this date.');
@@ -136,9 +145,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
     try {
       setBookingInProgress(true);
       setErrorMessage(null);
+      const validLocId = isUuid(selectedChamber?.id) ? selectedChamber?.id : undefined;
       const appt = await appointmentService.book({
         doctorId: currentDoctor.id,
-        locationId: selectedChamber?.id,
+        locationId: validLocId,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
         visitType,

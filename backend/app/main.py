@@ -37,9 +37,11 @@ app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origin_regex=r"^https://.*\.cloudfront\.net$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Standardized Error Handler (RFC 7807)

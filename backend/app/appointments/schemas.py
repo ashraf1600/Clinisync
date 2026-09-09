@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from pydantic import Field
+from pydantic import Field, field_validator
 from app.core.base_schema import CamelModel
 
 class AppointmentBookRequest(CamelModel):
@@ -11,6 +11,18 @@ class AppointmentBookRequest(CamelModel):
     end_time: datetime
     visit_type: str = "new_consultation"
     chief_complaint: Optional[str] = None
+
+    @field_validator("location_id", mode="before")
+    @classmethod
+    def validate_location_id(cls, v):
+        if not v or v == "default" or str(v).startswith("default"):
+            return None
+        if isinstance(v, uuid.UUID):
+            return v
+        try:
+            return uuid.UUID(str(v))
+        except (ValueError, TypeError):
+            return None
 
 class AppointmentRead(CamelModel):
     id: uuid.UUID

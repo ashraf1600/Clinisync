@@ -16,35 +16,46 @@ from app.availability.dependencies import require_doctor_or_admin
 
 router = APIRouter(prefix="/availability", tags=["Availability & Shifts"])
 
+def _parse_location_uuid(location_id: Optional[str]) -> Optional[uuid.UUID]:
+    if not location_id or location_id == "default":
+        return None
+    try:
+        return uuid.UUID(str(location_id))
+    except (ValueError, TypeError):
+        return None
+
 @router.get("/{doctorId}/schedule", response_model=DoctorMultiDayScheduleResponse, status_code=status.HTTP_200_OK)
 async def get_doctor_multi_day_schedule(
     doctorId: uuid.UUID,
     days: int = Query(14, ge=1, le=30, description="Number of upcoming days to load"),
     from_date: Optional[date] = Query(None, alias="fromDate", description="Starting calendar date YYYY-MM-DD (defaults to today)"),
-    location_id: Optional[uuid.UUID] = Query(None, alias="locationId", description="Filter slots by chamber location"),
+    location_id: Optional[str] = Query(None, alias="locationId", description="Filter slots by chamber location"),
     db: AsyncSession = Depends(get_db)
 ):
+    valid_loc_id = _parse_location_uuid(location_id)
     service = AvailabilityService(db)
-    return await service.get_multi_day_schedule(doctorId, from_date, days, location_id)
+    return await service.get_multi_day_schedule(doctorId, from_date, days, valid_loc_id)
 
 @router.get("/{doctorId}", response_model=DoctorDayAvailabilityResponse, status_code=status.HTTP_200_OK)
 async def get_doctor_availability(
     doctorId: uuid.UUID,
     date_param: date = Query(..., alias="date", description="Target calendar date YYYY-MM-DD"),
-    location_id: Optional[uuid.UUID] = Query(None, alias="locationId", description="Filter slots by chamber location"),
+    location_id: Optional[str] = Query(None, alias="locationId", description="Filter slots by chamber location"),
     db: AsyncSession = Depends(get_db)
 ):
+    valid_loc_id = _parse_location_uuid(location_id)
     service = AvailabilityService(db)
-    return await service.get_slots_for_date(doctorId, date_param, location_id)
+    return await service.get_slots_for_date(doctorId, date_param, valid_loc_id)
 
 @router.get("/{doctorId}/shifts", response_model=list[ChamberShiftRead], status_code=status.HTTP_200_OK)
 async def get_doctor_shifts(
     doctorId: uuid.UUID,
-    location_id: Optional[uuid.UUID] = Query(None, alias="locationId", description="Filter shifts by chamber location"),
+    location_id: Optional[str] = Query(None, alias="locationId", description="Filter shifts by chamber location"),
     db: AsyncSession = Depends(get_db)
 ):
+    valid_loc_id = _parse_location_uuid(location_id)
     service = AvailabilityService(db)
-    return await service.list_shifts(doctorId, location_id)
+    return await service.list_shifts(doctorId, valid_loc_id)
 
 @router.post("/{doctorId}/shifts", response_model=list[ChamberShiftRead], status_code=status.HTTP_201_CREATED)
 async def add_doctor_chamber_shifts(

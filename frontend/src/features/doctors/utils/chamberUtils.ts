@@ -37,7 +37,7 @@ export const getDoctorChambers = (doctor?: Doctor | null): DoctorChamberLocation
   // Fallback to primary facility if no locations defined
   return [
     {
-      id: 'default',
+      id: '',
       facilityName: baseFacility,
       branchArea: 'Primary Branch',
       chamberRoom: baseRoom,
