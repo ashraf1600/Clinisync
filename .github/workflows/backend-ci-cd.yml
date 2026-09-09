@@ -131,28 +131,35 @@ jobs:
 
       # Deployment Target: AWS App Runner (If configured)
       - name: Trigger AWS App Runner Deployment
-        if: secrets.APP_RUNNER_SERVICE_ARN != ''
+        env:
+          APP_RUNNER_SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN }}
+        if: env.APP_RUNNER_SERVICE_ARN != ''
         run: |
           aws apprunner start-deployment \
-            --service-arn "${{ secrets.APP_RUNNER_SERVICE_ARN }}" \
+            --service-arn "${{ env.APP_RUNNER_SERVICE_ARN }}" \
             --region "${{ secrets.AWS_REGION || 'us-east-1' }}"
 
       # Deployment Target: AWS ECS (If configured)
       - name: Deploy to Amazon ECS
-        if: secrets.ECS_CLUSTER_NAME != '' && secrets.ECS_SERVICE_NAME != ''
+        env:
+          ECS_CLUSTER_NAME: ${{ secrets.ECS_CLUSTER_NAME }}
+          ECS_SERVICE_NAME: ${{ secrets.ECS_SERVICE_NAME }}
+        if: env.ECS_CLUSTER_NAME != '' && env.ECS_SERVICE_NAME != ''
         run: |
           aws ecs update-service \
-            --cluster "${{ secrets.ECS_CLUSTER_NAME }}" \
-            --service "${{ secrets.ECS_SERVICE_NAME }}" \
+            --cluster "${{ env.ECS_CLUSTER_NAME }}" \
+            --service "${{ env.ECS_SERVICE_NAME }}" \
             --force-new-deployment \
             --region "${{ secrets.AWS_REGION || 'us-east-1' }}"
 
       # Deployment Target: Single EC2 via SSM (If configured)
       - name: Deploy to EC2 via AWS SSM
-        if: secrets.EC2_INSTANCE_ID != ''
+        env:
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        if: env.EC2_INSTANCE_ID != ''
         run: |
           aws ssm send-command \
-            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "cd /home/ubuntu/app",
