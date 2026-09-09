@@ -1,0 +1,1127 @@
+openapi: 3.0.3
+info:
+  title: CliniSync / ShebaSync API Contract
+  description: Official locked REST API specification for Frontend (Next.js & Flutter)
+    and Backend (FastAPI).
+  version: 1.0.0
+servers:
+- url: https://api.clinisync.com/api/v1
+  description: Production Server
+- url: http://localhost:8000/api/v1
+  description: Local Development Server
+paths:
+  /auth/register:
+    post:
+      summary: Register patient account
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/login:
+    post:
+      summary: Authenticate user
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/refresh:
+    post:
+      summary: Renew access token
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token renewed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  tokenType:
+                    type: string
+                    example: Bearer
+                  expiresIn:
+                    type: integer
+                    example: 900
+  /users/me:
+    get:
+      summary: Get own profile
+      tags:
+      - Users
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      summary: Update own profile
+      tags:
+      - Users
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                timezone:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /doctors:
+    get:
+      summary: List doctors
+      tags:
+      - Doctors
+      parameters:
+      - name: specialization
+        in: query
+        schema:
+          type: string
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Doctor list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Doctor'
+    post:
+      summary: Onboard doctor (Admin only)
+      tags:
+      - Doctors
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDoctorRequest'
+      responses:
+        '201':
+          description: Doctor created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+  /availability/{doctorId}:
+    get:
+      summary: Compute free slots for a doctor on a specific date
+      tags:
+      - Availability
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Computed slots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilitySlotsResponse'
+  /appointments/book:
+    post:
+      summary: Book an appointment (Idempotent)
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookAppointmentRequest'
+      responses:
+        '201':
+          description: Appointment booked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '409':
+          description: Slot conflict (Already booked or overlapping)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /appointments/{id}/reschedule:
+    put:
+      summary: Reschedule appointment atomically
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - newStartTime
+              - newEndTime
+              properties:
+                newStartTime:
+                  type: string
+                  format: date-time
+                newEndTime:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Rescheduled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+  /appointments/{id}/cancel:
+    put:
+      summary: Cancel appointment
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Cancelled successfully
+  /appointments/{id}/status:
+    put:
+      summary: Doctor toggles completed or no_show
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - completed
+                  - no_show
+      responses:
+        '200':
+          description: Status updated
+  /appointments/doctor/{doctorId}:
+    get:
+      summary: Doctor daily queue
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Daily queue list
+  /appointments/patient/me:
+    get:
+      summary: Patient appointment list
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: filter
+        in: query
+        schema:
+          type: string
+          enum:
+          - upcoming
+          - past
+      responses:
+        '200':
+          description: Patient bookings
+  /admin/analytics:
+    get:
+      summary: Get clinic volume and no-show metrics
+      tags:
+      - Admin
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Analytics data
+  /admin/audit-log:
+    get:
+      summary: View paginated audit logs
+      tags:
+      - Admin
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Audit logs
+  /devices/fcm-token:
+    post:
+      summary: Register or update FCM push device token
+      tags:
+      - Notifications
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - fcmToken
+              - deviceType
+              properties:
+                fcmToken:
+                  type: string
+                deviceType:
+                  type: string
+                  enum:
+                  - android
+                  - ios
+                  - web
+                deviceModel:
+                  type: string
+      responses:
+        '200':
+          description: Token registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deviceId:
+                    type: string
+                    format: uuid
+                  fcmToken:
+                    type: string
+                  deviceType:
+                    type: string
+                  isActive:
+                    type: boolean
+                  updatedAt:
+                    type: string
+                    format: date-time
+  /notifications:
+    get:
+      summary: Get paginated in-app notifications
+      tags:
+      - Notifications
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          default: 20
+      - name: unreadOnly
+        in: query
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: Notification feed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationItem'
+                  unreadCount:
+                    type: integer
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+  /notifications/{id}/read:
+    patch:
+      summary: Mark individual notification as read
+      tags:
+      - Notifications
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Notification marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  isRead:
+                    type: boolean
+                  readAt:
+                    type: string
+                    format: date-time
+  /notifications/mark-all-read:
+    post:
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  markedCount:
+                    type: integer
+  /auth/forgot-password:
+    post:
+      summary: Request password reset link
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset token sent if email exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /auth/reset-password:
+    post:
+      summary: Reset password using signed token
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              - newPassword
+              properties:
+                token:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /availability/{doctorId}/recurring:
+    put:
+      summary: Set doctor weekly recurring availability
+      tags:
+      - Availability
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - shifts
+              properties:
+                shifts:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      dayOfWeek:
+                        type: integer
+                        minimum: 0
+                        maximum: 6
+                      startTime:
+                        type: string
+                        example: 09:00
+                      endTime:
+                        type: string
+                        example: '13:00'
+                      slotDurationMinutes:
+                        type: integer
+                        default: 30
+                      bufferMinutes:
+                        type: integer
+                        default: 10
+      responses:
+        '200':
+          description: Weekly shifts updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /availability/{doctorId}/exceptions:
+    post:
+      summary: Block a specific date for holiday/leave
+      tags:
+      - Availability
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - exceptionDate
+              - isAvailable
+              properties:
+                exceptionDate:
+                  type: string
+                  format: date
+                isAvailable:
+                  type: boolean
+                  default: false
+                reason:
+                  type: string
+      responses:
+        '201':
+          description: Exception blocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  doctorId:
+                    type: string
+                    format: uuid
+                  exceptionDate:
+                    type: string
+                    format: date
+                  isAvailable:
+                    type: boolean
+                  reason:
+                    type: string
+  /availability/{doctorId}/bulk-generate:
+    post:
+      summary: Bulk publish slots for next week or next month
+      tags:
+      - Availability
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - targetRange
+              - startDate
+              - endDate
+              properties:
+                targetRange:
+                  type: string
+                  enum:
+                  - week
+                  - month
+                  - custom
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                daysOfWeek:
+                  type: array
+                  items:
+                    type: integer
+                startTime:
+                  type: string
+                  example: 09:00
+                endTime:
+                  type: string
+                  example: '13:00'
+                slotDurationMinutes:
+                  type: integer
+                  default: 30
+                bufferMinutes:
+                  type: integer
+                  default: 10
+                applyHolidays:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Slots bulk generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalSlotsCreated:
+                    type: integer
+                  dateRange:
+                    type: string
+                  workingDaysCount:
+                    type: integer
+                  holidaysSkipped:
+                    type: integer
+                  slotsPerDay:
+                    type: integer
+                  message:
+                    type: string
+  /appointments/doctor/{doctorId}/queue-pause:
+    put:
+      summary: Hold queue for doctor break (enforces empty chamber invariant)
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - pauseMinutes
+              properties:
+                pauseMinutes:
+                  type: integer
+                  default: 5
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Chamber paused and previous patient completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isPaused:
+                    type: boolean
+                  chamberStatus:
+                    type: string
+                    example: EMPTY (BREAK)
+                  pauseMinutes:
+                    type: integer
+                  resumeAt:
+                    type: string
+                    format: date-time
+                  message:
+                    type: string
+  /appointments/doctor/{doctorId}/queue-resume:
+    put:
+      summary: Resume chamber queue and call next patient token
+      tags:
+      - Appointments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: doctorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Chamber resumed and next serial called
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isPaused:
+                    type: boolean
+                  currentlyServingSerial:
+                    type: integer
+                  chamberStatus:
+                    type: string
+                    example: ACTIVE
+                  message:
+                    type: string
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ErrorResponse:
+      description: Error occurred
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+      - name
+      - email
+      - password
+      properties:
+        name:
+          type: string
+          example: Rahim Ahmed
+        email:
+          type: string
+          format: email
+          example: rahim@example.com
+        password:
+          type: string
+          example: SecurePass123!
+        timezone:
+          type: string
+          example: Asia/Dhaka
+    LoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+          - patient
+          - doctor
+          - admin
+        timezone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            tokenType:
+              type: string
+              example: Bearer
+            expiresIn:
+              type: integer
+              example: 900
+    Doctor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Prof. Dr. Karim Chowdhury
+        specialization:
+          type: string
+          example: Cardiology
+        degrees:
+          type: string
+          example: MBBS, FCPS (Cardiology), MD, FACC
+        bmdcNumber:
+          type: string
+          example: 'BMDC Reg # A-28491'
+        designation:
+          type: string
+          example: Senior Consultant & Professor
+        facilityName:
+          type: string
+          example: Popular Diagnostic Centre, Dhanmondi
+        chamberRoom:
+          type: string
+          example: 'Chamber #402, Level 4'
+        profilePhotoUrl:
+          type: string
+          format: uri
+        bio:
+          type: string
+        consultationFee:
+          type: number
+          example: 1200.0
+        followupFee:
+          type: number
+          example: 800.0
+        experienceYears:
+          type: integer
+          example: 18
+        rating:
+          type: number
+          example: 4.9
+    CreateDoctorRequest:
+      type: object
+      required:
+      - name
+      - email
+      - password
+      - specialization
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        specialization:
+          type: string
+        bio:
+          type: string
+        timezone:
+          type: string
+    AvailabilitySlotsResponse:
+      type: object
+      properties:
+        doctorId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        slotDurationMinutes:
+          type: integer
+        bufferMinutes:
+          type: integer
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              startTime:
+                type: string
+                format: date-time
+              endTime:
+                type: string
+                format: date-time
+              isAvailable:
+                type: boolean
+    BookAppointmentRequest:
+      type: object
+      required:
+      - doctorId
+      - startTime
+      - endTime
+      properties:
+        doctorId:
+          type: string
+          format: uuid
+        startTime:
+          type: string
+          format: date-time
+          example: '2026-09-10T10:00:00Z'
+        endTime:
+          type: string
+          format: date-time
+          example: '2026-09-10T10:30:00Z'
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        doctorId:
+          type: string
+          format: uuid
+        doctorName:
+          type: string
+        specialization:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - pending
+          - confirmed
+          - completed
+          - cancelled
+          - no_show
+        createdAt:
+          type: string
+          format: date-time
+    ErrorEnvelope:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          - status
+          properties:
+            code:
+              type: string
+              example: SLOT_CONFLICT
+            message:
+              type: string
+              example: This slot was just booked by another patient.
+            status:
+              type: integer
+              example: 409
+            details:
+              type: object
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        notificationType:
+          type: string
+          enum:
+          - booking_confirmed
+          - queue_update
+          - doctor_break
+          - reminder_24h
+          - reminder_1h
+          - cancelled
+          - system
+        appointmentId:
+          type: string
+          format: uuid
+        isRead:
+          type: boolean
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time

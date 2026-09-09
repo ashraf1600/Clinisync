@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CliniSync / ShebaSync — Trust & Digital Precision Healthcare UI</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+    
+    :root {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-bangla {
+      font-family: 'Hind Siliguri', 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .phone-shadow {
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px -10px rgba(14, 165, 233, 0.2);
+    }
+    .doctor-card, .slot-card, .notif-card {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .doctor-card:hover, .notif-card:hover {
+      transform: translateY(-2px);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Push Banner Animation */
+    @keyframes slideDownBanner {
+      0% { transform: translateY(-100px); opacity: 0; }
+      15% { transform: translateY(0); opacity: 1; }
+      85% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-100px); opacity: 0; }
+    }
+    .animate-push-banner {
+      animation: slideDownBanner 4.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    
+    /* ==================================================================== */
+    /* THEME: TRUST & DIGITAL PRECISION (ROYAL BLUE + BIO-TEAL + SLATE)     */
+    /* ==================================================================== */
+    :root {
+      --brand-primary: #1D4ED8;
+      --brand-teal: #0D9488;
+      --brand-cyan: #0284C7;
+      --status-active: #10B981;
+      --status-hold: #F59E0B;
+      --status-alert: #F43F5E;
+    }
+
+    .btn-brand-primary {
+      background: linear-gradient(135deg, #1D4ED8 0%, #0284C7 50%, #0D9488 100%) !important;
+      box-shadow: 0 4px 14px 0 rgba(29, 78, 216, 0.35) !important;
+    }
+    .btn-brand-primary:hover {
+      box-shadow: 0 6px 20px 0 rgba(2, 132, 199, 0.45) !important;
+    }
+
+    /* Clinical High-Contrast Light Mode for Patient Phone */
+    .theme-clinical-light {
+      background: #F8FAFC !important;
+      color: #0F172A !important;
+    }
+    .theme-clinical-light .screen-inner {
+      background: #F8FAFC !important;
+      color: #0F172A !important;
+    }
+    .theme-clinical-light .phone-status-bar {
+      color: #0F172A !important;
+    }
+    .theme-clinical-light .phone-bottom-bar {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-top-color: #E2E8F0 !important;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.03) !important;
+    }
+    .theme-clinical-light .phone-bottom-bar button {
+      color: #64748B !important;
+    }
+    .theme-clinical-light .phone-bottom-bar button.text-cyan-400,
+    .theme-clinical-light .phone-bottom-bar button.active-nav {
+      color: #0284C7 !important;
+    }
+    .theme-clinical-light .glass-card,
+    .theme-clinical-light .doctor-card,
+    .theme-clinical-light .slot-card,
+    .theme-clinical-light .notif-card {
+      background: #FFFFFF !important;
+      border-color: #E2E8F0 !important;
+      color: #0F172A !important;
+      box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.08) !important;
+    }
+    .theme-clinical-light .text-white {
+      color: #0F172A !important;
+    }
+    .theme-clinical-light .text-slate-300,
+    .theme-clinical-light .text-slate-400 {
+      color: #475569 !important;
+    }
+    .theme-clinical-light .bg-slate-900,
+    .theme-clinical-light .bg-slate-800,
+    .theme-clinical-light .bg-slate-800\/80,
+    .theme-clinical-light .bg-slate-800\/90 {
+      background-color: #F1F5F9 !important;
+      color: #1E293B !important;
+      border-color: #E2E8F0 !important;
+    }
+    .theme-clinical-light input {
+      background-color: #FFFFFF !important;
+      color: #0F172A !important;
+      border-color: #CBD5E1 !important;
+    }
+    .theme-clinical-light input::placeholder {
+      color: #94A3B8 !important;
+    }
+    .theme-clinical-light .token-badge-highlight {
+      background: #0284C7 !important;
+      color: #FFFFFF !important;
+    }
+    .theme-clinical-light .token-slip-container {
+      background: #FFFFFF !important;
+      border: 2px solid #0284C7 !important;
+      box-shadow: 0 12px 30px -5px rgba(2, 132, 199, 0.2) !important;
+    }
+
+    /* Pulse glow */
+    .pulse-glow {
+      box-shadow: 0 0 20px -2px rgba(16, 185, 129, 0.4);
+    }
+  </style>
+</head>
+<body class="bg-[#090D16] text-slate-100 min-h-screen antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- Ambient Background Glows -->
+  <div class="fixed top-0 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="fixed bottom-10 right-1/4 w-[30rem] h-[30rem] bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-4 md:px-8 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 font-black text-xl">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              CliniSync <span class="text-slate-400 font-normal">/</span> <span class="font-bangla text-cyan-400 font-bold">সিরিয়াল ট্র্যাকার ও ডিজিটাল স্লিপ</span>
+            </h1>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              Live Token System
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">1. Chamber Serial # & QR Slip · 2. Live Waiting Lobby Tracker (Synced with Doctor Queue)</p>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-3">
+                <!-- Color Theme Mode Switcher -->
+        <div class="hidden sm:flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700/60 text-xs">
+          <button id="btn-theme-light" onclick="setPhoneTheme('light')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-white text-slate-900 shadow-sm transition-all">
+            <span>☀️ Clinical Light</span>
+            <span class="text-[9px] px-1 py-0.2 bg-blue-100 text-blue-800 rounded font-semibold">Best</span>
+          </button>
+          <button id="btn-theme-dark" onclick="setPhoneTheme('dark')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition-all">
+            <span>🌙 Slate Night</span>
+          </button>
+        </div>
+
+        <!-- Language Switcher -->
+        <div class="flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700/60 text-xs">
+          <button id="lang-en" onclick="setLanguage('en')" class="px-2.5 py-1 rounded-lg font-bold bg-cyan-500 text-white transition-all shadow-sm">
+            English
+          </button>
+          <button id="lang-bn" onclick="setLanguage('bn')" class="px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition-all font-bangla">
+            বাংলা
+          </button>
+        </div>
+
+        <!-- View Switcher -->
+        <div class="inline-flex p-1 bg-slate-800/90 rounded-xl border border-slate-700/60 text-xs font-medium">
+          <button id="tab-mobile" onclick="switchPlatform('mobile')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+            <span>Patient Mobile App</span>
+          </button>
+          <button id="tab-web" onclick="switchPlatform('web')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            <span>Doctor Web Queue</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Toast Alert -->
+  <div id="toast-box" class="fixed top-20 right-6 z-50 transform transition-all duration-300 translate-y-[-20px] opacity-0 pointer-events-none">
+    <div class="glass-card px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/40 text-xs flex items-center gap-3">
+      <span id="toast-icon" class="text-base">✅</span>
+      <div>
+        <div id="toast-title" class="font-bold text-white">Success</div>
+        <div id="toast-msg" class="text-slate-300 text-[11px]">Appointment booked successfully.</div>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto p-4 md:p-8">
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 1: PATIENT MOBILE APP (WITH TOKEN, LIVE TRACKER & QR SLIP)      -->
+    <!-- ==================================================================== -->
+    <div id="view-mobile" class="flex flex-col lg:flex-row items-center justify-center gap-10">
+      
+      <!-- Phone Bezel -->
+      <div class="relative w-[390px] h-[820px] bg-slate-950 rounded-[48px] p-3 phone-shadow border-[5px] border-slate-800 ring-2 ring-slate-700/50 flex flex-col overflow-hidden">
+        
+        <!-- Dynamic Island -->
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 h-5 w-32 bg-black rounded-full z-40 flex items-center justify-center gap-2">
+          <div class="w-2.5 h-2.5 rounded-full bg-slate-900"></div>
+          <div class="w-2 h-2 rounded-full bg-cyan-900/60"></div>
+        </div>
+
+        <!-- SIMULATED PUSH NOTIFICATION BANNER -->
+        <div id="push-banner-container" class="absolute top-3 left-3 right-3 z-50 pointer-events-none hidden">
+          <div class="bg-slate-900/95 backdrop-blur-xl border border-cyan-500/40 rounded-3xl p-3 shadow-2xl flex items-start gap-3 pointer-events-auto cursor-pointer animate-push-banner" onclick="navTo('notifications')">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-base shadow-sm shrink-0 font-bold">
+              ⚡
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center text-[10px] text-slate-400">
+                <span class="font-bold text-cyan-300 uppercase tracking-wider">CliniSync</span>
+                <span id="push-banner-time">Now</span>
+              </div>
+              <div class="font-bold text-white text-xs truncate mt-0.5" id="push-banner-title">Booking Confirmed</div>
+              <p class="text-[11px] text-slate-300 truncate mt-0.5" id="push-banner-body">Dr. Karim Chowdhury at 10:40 AM</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone Screen Inside -->
+        <div id="phone-screen-container" class="w-full h-full screen-inner bg-[#F8FAFC] theme-clinical-light rounded-[38px] overflow-hidden flex flex-col text-slate-900 text-xs select-none relative transition-colors duration-300">
+          
+          <!-- iOS Status Bar -->
+          <div class="h-11 pt-2 px-6 flex justify-between items-center phone-status-bar text-slate-600 text-[11px] font-semibold shrink-0 z-30">
+            <span>09:41</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold text-emerald-400">5G</span>
+              <div class="w-5 h-2.5 rounded-sm border border-slate-500 p-0.5 flex items-center">
+                <div class="w-full h-full bg-emerald-400 rounded-2xs"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Navigation Bar -->
+          <div class="absolute bottom-0 left-0 right-0 h-16 phone-bottom-bar bg-white/95 border-t border-slate-200 backdrop-blur-md flex items-center justify-around px-4 z-30">
+            <button onclick="navTo('search')" id="m-nav-search" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <span class="text-[10px] font-medium" id="label-nav-search">Search</span>
+            </button>
+            <button onclick="navTo('my')" id="m-nav-my" class="flex flex-col items-center gap-1 text-cyan-400">
+              <div class="relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span id="nav-badge" class="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-cyan-500 text-white text-[9px] font-bold flex items-center justify-center">1</span>
+              </div>
+              <span class="text-[10px] font-bold" id="label-nav-my">My Bookings</span>
+            </button>
+            <button onclick="navTo('notifications')" id="m-nav-notif" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white">
+              <div class="relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                <span id="notif-badge" class="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">2</span>
+              </div>
+              <span class="text-[10px] font-medium" id="label-nav-notif">Alerts</span>
+            </button>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- SCREEN 1: DOCTOR SEARCH                                    -->
+          <!-- ========================================================== -->
+          <div id="screen-search" class="hidden flex-1 overflow-y-auto no-scrollbar pb-20 flex flex-col">
+            <div class="p-4 space-y-3 shrink-0">
+              <div class="flex justify-between items-center">
+                <div>
+                  <span class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Healthcare Portal</span>
+                  <h2 class="text-base font-extrabold text-white" id="title-find-doctor">Find Your Specialist</h2>
+                </div>
+                <button onclick="navTo('notifications')" class="relative w-9 h-9 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                  <span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-[#0D1322]"></span>
+                </button>
+              </div>
+
+              <div class="relative">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input 
+                  type="text" 
+                  id="doctor-search-input" 
+                  oninput="onSearchDoctors(this.value)"
+                  placeholder="Search doctor, cardiology, facility..." 
+                  class="w-full bg-slate-900 border border-slate-700/80 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                />
+              </div>
+
+              <div class="flex gap-2 overflow-x-auto no-scrollbar pt-1">
+                <button onclick="filterSpecialty('All', this)" class="spec-pill px-3 py-1.5 rounded-xl font-bold bg-cyan-500 text-white text-[11px] shrink-0">All Specialties</button>
+                <button onclick="filterSpecialty('Cardiology', this)" class="spec-pill px-3 py-1.5 rounded-xl font-medium bg-slate-800/80 text-slate-400 text-[11px] border border-slate-700/60 shrink-0">Cardiology</button>
+                <button onclick="filterSpecialty('Pediatrics', this)" class="spec-pill px-3 py-1.5 rounded-xl font-medium bg-slate-800/80 text-slate-400 text-[11px] border border-slate-700/60 shrink-0">Pediatrics</button>
+                <button onclick="filterSpecialty('Neurology', this)" class="spec-pill px-3 py-1.5 rounded-xl font-medium bg-slate-800/80 text-slate-400 text-[11px] border border-slate-700/60 shrink-0">Neurology</button>
+              </div>
+            </div>
+
+            <div class="px-4 space-y-3" id="doctor-cards-list"></div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- SCREEN 2: DOCTOR PROFILE                                   -->
+          <!-- ========================================================== -->
+          <div id="screen-profile" class="hidden flex-1 overflow-y-auto no-scrollbar pb-20 flex flex-col">
+            <div class="p-4 flex items-center justify-between border-b border-slate-800/80 shrink-0">
+              <button onclick="navTo('search')" class="p-2 rounded-xl bg-slate-800/80 text-slate-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+              </button>
+              <span class="font-bold text-sm text-white">Doctor Details</span>
+              <span class="w-8"></span>
+            </div>
+            <div id="profile-content-container" class="p-4 space-y-4"></div>
+            <div class="p-4 bg-slate-900/90 border-t border-slate-800 shrink-0 mt-auto">
+              <button onclick="navTo('booking')" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 text-white font-extrabold text-xs shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2">
+                <span>Check Available Slots & Book</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- SCREEN 3: SLOT PICKER                                      -->
+          <!-- ========================================================== -->
+          <div id="screen-booking" class="hidden flex-1 overflow-y-auto no-scrollbar pb-20 flex flex-col">
+            <div class="p-4 flex items-center justify-between border-b border-slate-800/80 shrink-0">
+              <button onclick="navTo('profile')" class="p-2 rounded-xl bg-slate-800/80 text-slate-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+              </button>
+              <div class="text-center">
+                <div class="font-bold text-xs text-white" id="booking-doctor-name">Dr. Karim Chowdhury</div>
+                <div class="text-[10px] text-slate-400" id="booking-doctor-sub">Cardiology · Popular Diagnostic</div>
+              </div>
+              <span class="w-8"></span>
+            </div>
+
+            <!-- Date Ribbon -->
+            <div class="px-4 pt-3 pb-1 shrink-0">
+              <div class="flex justify-between items-center mb-2">
+                <span class="font-bold text-white text-xs">Select Date</span>
+                <span class="text-cyan-400 text-[10px] font-semibold">September 2026</span>
+              </div>
+              <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <button onclick="changeActiveDate('2026-09-08', this)" class="date-chip flex flex-col items-center justify-center min-w-[52px] py-2 rounded-xl bg-slate-800/70 border border-slate-700/60 text-slate-400">
+                  <span class="text-[10px]">Tue</span><span class="text-sm font-bold mt-0.5">08</span>
+                </button>
+                <button onclick="changeActiveDate('2026-09-09', this)" class="date-chip flex flex-col items-center justify-center min-w-[52px] py-2 rounded-xl bg-slate-800/70 border border-slate-700/60 text-slate-400">
+                  <span class="text-[10px]">Wed</span><span class="text-sm font-bold mt-0.5">09</span>
+                </button>
+                <button onclick="changeActiveDate('2026-09-10', this)" class="date-chip flex flex-col items-center justify-center min-w-[52px] py-2 rounded-xl bg-gradient-to-b from-cyan-500 to-blue-600 text-white shadow-md ring-2 ring-cyan-400/50">
+                  <span class="text-[10px] font-semibold text-cyan-100">Thu</span><span class="text-sm font-black mt-0.5">10</span>
+                </button>
+                <button onclick="changeActiveDate('2026-09-11', this)" class="date-chip flex flex-col items-center justify-center min-w-[52px] py-2 rounded-xl bg-rose-950/20 border border-rose-900/40 text-rose-300">
+                  <span class="text-[10px]">Fri</span><span class="text-sm font-bold mt-0.5">11</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Slots Matrix -->
+            <div class="flex-1 px-4 py-2 space-y-3" id="slot-container"></div>
+
+            <!-- Bottom Confirmation Bar -->
+            <div class="p-4 bg-slate-900/90 border-t border-slate-800/80 shrink-0 space-y-2 mt-auto">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="text-slate-400">Selected:</span>
+                <span id="m-selected-summary" class="font-bold text-cyan-300">10:40 AM, Thu 10 Sep</span>
+              </div>
+              <button id="btn-book-action" onclick="bookSelectedSlot()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 text-white font-extrabold text-xs shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2">
+                <div><span id="label-confirm-btn" class="block">Confirm Free Reservation</span><span class="text-[9px] text-cyan-200 font-normal">No advance fee · Pay ৳1,200 at Chamber Reception</span></div>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- SCREEN 4: MY BOOKINGS SCREEN (WITH LIVE QUEUE TRACKER)     -->
+          <!-- ========================================================== -->
+          <div id="screen-my" class="flex-1 overflow-y-auto no-scrollbar pb-20 p-4 space-y-4">
+            
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div>
+                <h3 class="font-extrabold text-white text-sm" id="label-my-title">My Appointments</h3>
+                <p class="text-[10px] text-slate-400">Live Chamber Queue & Token Pass</p>
+              </div>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">
+                ● Live Sync
+              </span>
+            </div>
+
+            <!-- Active Appointments Container -->
+            <div id="my-appointments-list" class="space-y-4">
+              <!-- Rendered dynamically via JS -->
+            </div>
+
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- SCREEN 5: NOTIFICATION HUB                                 -->
+          <!-- ========================================================== -->
+          <div id="screen-notifications" class="hidden flex-1 overflow-y-auto no-scrollbar pb-20 p-4 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div>
+                <h3 class="font-extrabold text-white text-sm">Notification Hub</h3>
+                <p class="text-[10px] text-slate-400">Push (FCM) & Email Alerts</p>
+              </div>
+              <button onclick="markAllNotificationsRead()" class="text-[10px] font-bold text-cyan-400 hover:underline">
+                Mark all read
+              </button>
+            </div>
+            <div id="notification-feed-list" class="space-y-2.5"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right Column: Interactive Queue Control & Explanations -->
+      <div class="max-w-md space-y-5">
+        
+        <!-- Live Chamber Queue Simulator Panel -->
+        <div class="glass-card p-5 rounded-3xl border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Queue Tracker Engine
+            </span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">WebSocket / SSE</span>
+          </div>
+
+          <h3 class="text-base font-extrabold text-white">Chamber Serial & Wait-Time Tracker</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            In Bangladesh clinics (Popular, Evercare, Square), patients need to know their <strong>Serial Number</strong>. Our system tracks doctor progress in real-time so patients arrive right on time.
+          </p>
+
+          <!-- Interactive Advance Queue Buttons -->
+          <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5">
+            <div class="text-xs font-bold text-white flex justify-between">
+              <span>Doctor Action Simulator:</span>
+              <span class="text-cyan-300" id="sim-current-serving">Serving: Serial #02</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Click below to simulate the doctor finishing Serial #02 and calling the next patient into the room:</p>
+            
+            <button onclick="advanceDoctorQueue()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all">
+              <span>➔ Call Next Patient into Chamber (Done Current)</span>
+            </button>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button onclick="openSlipModal(myAppointments[0])" class="p-2.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-bold text-center transition">
+              📄 Open Digital QR Slip
+            </button>
+            <button onclick="simulatePushTrigger('reminder-1h')" class="p-2.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-center transition">
+              🔔 Trigger 1h Push
+            </button>
+          </div>
+        </div>
+
+        <!-- Token Slip Feature Highlight -->
+        <div class="glass-card p-5 rounded-3xl border border-slate-800 space-y-2.5">
+          <div class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+            <span>🎟️</span> 1-Scan Reception Check-In
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            The Digital Appointment Slip contains a generated **QR code**. Reception staff scan the code in 1 second, confirming patient arrival without paper registers or long queues.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 2: DOCTOR & ADMIN WEB CONSOLE (QUEUE + TIME SLOT CREATOR)       -->
+    <!-- ==================================================================== -->
+    <div id="view-web" class="hidden space-y-6">
+      
+      <!-- Top Navigation for Doctor & Admin Web -->
+      <div class="glass-card rounded-3xl border border-slate-800 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-teal-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-700/25">
+            👨‍⚕️
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-extrabold text-white">Doctor & Admin Web Console</h2>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                Chamber Portal
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Dr. Karim Chowdhury · Cardiology Clinic · Chamber #402, Popular Diagnostic</p>
+          </div>
+        </div>
+
+        <!-- Web Sub-Tabs: Live Queue vs Slot Creator -->
+        <div class="flex items-center gap-3">
+          <div class="inline-flex p-1 bg-slate-900 rounded-2xl border border-slate-700 text-xs font-medium">
+            <button id="web-subtab-queue" onclick="switchWebTab('queue')" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+              <span>Chamber Live Queue</span>
+            </button>
+            <button id="web-subtab-slots" onclick="switchWebTab('slots')" class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-slate-400 hover:text-white transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              <span>Time Slots & Shifts</span>
+            </button>
+            <button id="web-subtab-onboard" onclick="switchWebTab('onboard')" class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-slate-400 hover:text-white transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+              <span>Doctor Onboarding & Profiling</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30">Admin</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================== -->
+      <!-- TAB 1: DOCTOR LIVE QUEUE PANEL                                      -->
+      <!-- ================================================================== -->
+      <div id="web-panel-queue" class="glass-card rounded-3xl border border-slate-800 p-6 space-y-4">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+          <div>
+            <h2 class="text-base font-extrabold text-white">Chamber Queue — Today's Patient Flow</h2>
+            <p class="text-xs text-slate-400">Manage patient intake, call in next token, or hold queue for short doctor rest break</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">View as Role:</span>
+            <div class="inline-flex p-1 bg-slate-900 rounded-xl border border-slate-700 text-xs">
+              <button id="role-btn-doctor" onclick="setWebRole('doctor')" class="px-3 py-1 rounded-lg font-bold bg-cyan-500 text-white shadow transition">
+                👨‍⚕️ Doctor (Clinical Details)
+              </button>
+              <button id="role-btn-admin" onclick="setWebRole('admin')" class="px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition">
+                🛡️ Admin / Reception (Privacy Masked)
+              </button>
+            </div>
+          </div>
+        </div>
+        
+          <!-- Doctor Queue Action Bar with Hold/Break Feature -->
+          <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-sm font-bold">
+                ☕
+              </div>
+              <div>
+                <div class="text-xs font-bold text-white" id="web-break-status">Chamber Queue Active (No Break)</div>
+                <div class="text-[10px] text-slate-400" id="web-break-sub">Doctor is attending patients without interruption</div>
+              </div>
+            </div>
+
+            <!-- Break Action Buttons -->
+            <div class="flex items-center gap-2" id="break-action-btns">
+              <button onclick="startDoctorBreak(5)" class="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1.5">
+                <span>☕ Take 5-Min Break / Hold Queue</span>
+              </button>
+              <button onclick="advanceDoctorQueue()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition shadow">
+                ➔ Call Next Patient
+              </button>
+            </div>
+          </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-900/80 text-slate-400 text-[11px] uppercase tracking-wider font-semibold">
+              <tr>
+                <th class="p-3.5 rounded-l-2xl">Serial</th>
+                <th class="p-3.5">Slot Time</th>
+                <th class="p-3.5">Patient Name & Info</th>
+                <th class="p-3.5">Chief Complaint / Health Problem</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5 text-right rounded-r-2xl">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="web-queue-body" class="divide-y divide-slate-800/60"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================================================================== -->
+      <!-- TAB 2: DOCTOR / ADMIN TIME SLOT CREATOR & SCHEDULE MANAGER (NEW!)   -->
+      <!-- ================================================================== -->
+      <div id="web-panel-slots" class="hidden space-y-6">
+        
+        <!-- Top Metrics Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="glass-card p-4 rounded-2xl border border-slate-800 space-y-1">
+            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Active Monthly Capacity</span>
+            <div class="text-2xl font-black text-white" id="stat-total-slots">180 Slots</div>
+            <div class="text-[10px] text-emerald-400 font-semibold">● Published & Open for Booking</div>
+          </div>
+          <div class="glass-card p-4 rounded-2xl border border-slate-800 space-y-1">
+            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Working Days (Next Month)</span>
+            <div class="text-2xl font-black text-cyan-300">22 Days</div>
+            <div class="text-[10px] text-slate-400">Fridays auto-skipped (Weekly Off)</div>
+          </div>
+          <div class="glass-card p-4 rounded-2xl border border-slate-800 space-y-1">
+            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Doctor Buffer Time</span>
+            <div class="text-2xl font-black text-amber-300">10 mins / patient</div>
+            <div class="text-[10px] text-amber-400 font-medium">Auto-padded to protect clinician rest</div>
+          </div>
+          <div class="glass-card p-4 rounded-2xl border border-slate-800 space-y-1">
+            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Zero Double-Booking</span>
+            <div class="text-2xl font-black text-emerald-400">100% Kernel Lock</div>
+            <div class="text-[10px] text-slate-400">PostgreSQL GiST Range Exclusion</div>
+          </div>
+        </div>
+
+        <!-- MAIN INTERACTIVE GENERATOR CARD -->
+        <div class="glass-card rounded-3xl border border-slate-800 p-6 space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 pb-4 border-b border-slate-800">
+            <div>
+              <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                <span>🗓️ Bulk Time Slot Generator</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30">API: /availability/bulk-generate</span>
+              </h3>
+              <p class="text-xs text-slate-400">Create and publish recurring appointment slots in 1-click for the whole week or whole month.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-slate-400">Target Doctor:</span>
+              <select id="slot-gen-doctor" class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-blue-500">
+                <option value="doc-1">Dr. Karim Chowdhury (Cardiology)</option>
+                <option value="doc-2">Dr. Fatima Begum (Pediatrics)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Generation Form Controls -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Column 1: Time Horizon / Range -->
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-slate-200">1. Select Target Schedule Range</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/90 border border-blue-500/40 cursor-pointer hover:bg-slate-800/80 transition">
+                  <input type="radio" name="gen-horizon" value="month" checked onchange="updateSlotCalculationPreview()" class="w-4 h-4 text-blue-600 focus:ring-blue-500"/>
+                  <div>
+                    <div class="text-xs font-bold text-white">Next Whole Month (30 Days)</div>
+                    <div class="text-[10px] text-slate-400">October 1, 2026 – October 31, 2026</div>
+                  </div>
+                </label>
+                <label class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/50 border border-slate-800 cursor-pointer hover:bg-slate-800/80 transition">
+                  <input type="radio" name="gen-horizon" value="week" onchange="updateSlotCalculationPreview()" class="w-4 h-4 text-blue-600 focus:ring-blue-500"/>
+                  <div>
+                    <div class="text-xs font-bold text-white">Next Whole Week (Upcoming 7 Days)</div>
+                    <div class="text-[10px] text-slate-400">Upcoming Sunday to Thursday shifts</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Column 2: Working Days & Shift Hours -->
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-slate-200">2. Working Days & Shift Hours</label>
+              
+              <!-- Day Checkboxes -->
+              <div class="flex flex-wrap gap-1.5">
+                <label class="px-2.5 py-1.5 rounded-lg bg-blue-900/40 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="day-sat" checked onchange="updateSlotCalculationPreview()" class="rounded text-blue-600"/> Sat
+                </label>
+                <label class="px-2.5 py-1.5 rounded-lg bg-blue-900/40 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="day-sun" checked onchange="updateSlotCalculationPreview()" class="rounded text-blue-600"/> Sun
+                </label>
+                <label class="px-2.5 py-1.5 rounded-lg bg-blue-900/40 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="day-mon" checked onchange="updateSlotCalculationPreview()" class="rounded text-blue-600"/> Mon
+                </label>
+                <label class="px-2.5 py-1.5 rounded-lg bg-blue-900/40 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="day-tue" checked onchange="updateSlotCalculationPreview()" class="rounded text-blue-600"/> Tue
+                </label>
+                <label class="px-2.5 py-1.5 rounded-lg bg-blue-900/40 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="day-wed" checked onchange="updateSlotCalculationPreview()" class="rounded text-blue-600"/> Wed
+                </label>
+                <label class="px-2.5 py-1.5 rounded-lg bg-blue-900/40 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="day-thu" checked onchange="updateSlotCalculationPreview()" class="rounded text-blue-600"/> Thu
+                </label>
+                <label class="px-2.5 py-1.5 rounded-lg bg-rose-950/30 border border-rose-900/50 text-[11px] font-semibold text-rose-300 flex items-center gap-1.5 cursor-pointer opacity-70">
+                  <input type="checkbox" id="day-fri" onchange="updateSlotCalculationPreview()" class="rounded text-rose-600"/> Fri (Holiday)
+                </label>
+              </div>
+
+              <!-- Time Inputs -->
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <span class="text-[10px] text-slate-400 block">Shift Start Time:</span>
+                  <input type="time" id="shift-start-time" value="09:00" onchange="updateSlotCalculationPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-blue-500"/>
+                </div>
+                <div>
+                  <span class="text-[10px] text-slate-400 block">Shift End Time:</span>
+                  <input type="time" id="shift-end-time" value="13:00" onchange="updateSlotCalculationPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-blue-500"/>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 3: Duration, Buffer & Live Preview -->
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-slate-200">3. Slot Duration & Rest Buffer</label>
+              
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <span class="text-[10px] text-slate-400 block">Slot Duration:</span>
+                  <select id="slot-duration-select" onchange="updateSlotCalculationPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-blue-500">
+                    <option value="15">15 Minutes</option>
+                    <option value="20">20 Minutes</option>
+                    <option value="30" selected>30 Minutes (Recommended)</option>
+                    <option value="45">45 Minutes</option>
+                  </select>
+                </div>
+                <div>
+                  <span class="text-[10px] text-slate-400 block">Doctor Buffer:</span>
+                  <select id="slot-buffer-select" onchange="updateSlotCalculationPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-blue-500">
+                    <option value="0">None (0 min)</option>
+                    <option value="5">5 Minutes</option>
+                    <option value="10" selected>10 Minutes (Rest & Charting)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Real-time Mathematical Calculation Box -->
+              <div class="p-3 rounded-2xl bg-blue-950/40 border border-blue-500/30 space-y-1.5">
+                <div class="flex justify-between items-center text-[10px]">
+                  <span class="text-blue-200 font-semibold">Daily Shift Capacity:</span>
+                  <span class="font-bold text-white font-mono" id="preview-daily-slots">6 Patient Serials / day</span>
+                </div>
+                <div class="flex justify-between items-center text-[10px]">
+                  <span class="text-blue-200 font-semibold">Total Generated:</span>
+                  <span class="font-black text-emerald-400 text-xs font-mono" id="preview-total-slots">132 Slots (22 Days)</span>
+                </div>
+                <div class="text-[9px] text-slate-400">
+                  Formula: (240 min shift) ÷ (30m visit + 10m buffer) = 6 patients/day
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Bottom Action Bar -->
+          <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex items-center gap-2 text-xs text-slate-400">
+              <span class="text-emerald-400">🛡️</span>
+              <span>Slots automatically enforce kernel exclusion constraints (Zero Double-Booking).</span>
+            </div>
+            <button onclick="executeBulkSlotGeneration()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-700 via-blue-600 to-teal-600 hover:from-blue-600 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2">
+              <span>⚡ Generate & Publish Slots to Patient App</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- DOCTOR RECURRING SHIFT TEMPLATES & EXCEPTIONS TABLE -->
+        <div class="glass-card rounded-3xl border border-slate-800 p-6 space-y-4">
+          <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+            <div>
+              <h3 class="text-base font-extrabold text-white">Active Weekly Shift Templates</h3>
+              <p class="text-xs text-slate-400">Base availability rules stored in PostgreSQL <code>availability</code> table</p>
+            </div>
+            <button onclick="openAddShiftModal()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-cyan-300 border border-slate-700 transition flex items-center gap-1">
+              <span>+ Add Shift Template</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900/80 text-slate-400 text-[11px] uppercase tracking-wider font-semibold">
+                <tr>
+                  <th class="p-3.5 rounded-l-2xl">Day of Week</th>
+                  <th class="p-3.5">Shift Window</th>
+                  <th class="p-3.5">Slot Length</th>
+                  <th class="p-3.5">Rest Buffer</th>
+                  <th class="p-3.5">Max Patients</th>
+                  <th class="p-3.5">Status</th>
+                  <th class="p-3.5 text-right rounded-r-2xl">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60" id="shift-templates-tbody">
+                <tr>
+                  <td class="p-3.5 font-bold text-white">Sunday (রবিবার)</td>
+                  <td class="p-3.5 font-mono text-cyan-300">09:00 AM – 01:00 PM</td>
+                  <td class="p-3.5">30 mins</td>
+                  <td class="p-3.5 text-amber-300">10 mins</td>
+                  <td class="p-3.5 font-bold">6 Serials</td>
+                  <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">Active</span></td>
+                  <td class="p-3.5 text-right"><button class="text-slate-400 hover:text-rose-400 text-xs font-medium">Delete</button></td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-bold text-white">Tuesday (মঙ্গলবার)</td>
+                  <td class="p-3.5 font-mono text-cyan-300">09:00 AM – 01:00 PM</td>
+                  <td class="p-3.5">30 mins</td>
+                  <td class="p-3.5 text-amber-300">10 mins</td>
+                  <td class="p-3.5 font-bold">6 Serials</td>
+                  <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">Active</span></td>
+                  <td class="p-3.5 text-right"><button class="text-slate-400 hover:text-rose-400 text-xs font-medium">Delete</button></td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-bold text-white">Thursday (বৃহস্পতিবার)</td>
+                  <td class="p-3.5 font-mono text-cyan-300">10:00 AM – 01:00 PM</td>
+                  <td class="p-3.5">30 mins</td>
+                  <td class="p-3.5 text-amber-300">10 mins</td>
+                  <td class="p-3.5 font-bold">5 Serials</td>
+                  <td class="p-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">Active</span></td>
+                  <td class="p-3.5 text-right"><button class="text-slate-400 hover:text-rose-400 text-xs font-medium">Delete</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ==================================================================== -->
+  <!-- MODAL: DIGITAL APPOINTMENT SLIP WITH QR CODE (USER REQUEST)          -->
+  <!-- ==================================================================== -->
+  <div id="modal-digital-slip" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card border border-slate-700 rounded-[32px] p-6 max-w-sm w-full shadow-2xl relative space-y-4">
+      
+      <!-- Close Button -->
+      <button onclick="closeSlipModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white">
+        ✕
+      </button>
+
+      <!-- Hospital Watermark & Header -->
+      <div class="text-center pb-3 border-b border-dashed border-slate-700">
+        <div class="text-[10px] uppercase font-bold tracking-widest text-cyan-400">Popular Diagnostic Centre</div>
+        <h3 class="text-base font-extrabold text-white mt-0.5">Appointment Slip</h3>
+        <p class="text-[10px] text-slate-400">Electronic Clinical Token Pass</p>
+      </div>
+
+      <!-- Huge Serial Token Highlight -->
+      <div class="p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-slate-900 to-indigo-950/60 border border-cyan-500/40 text-center space-y-1">
+        <span class="text-[10px] uppercase font-extrabold tracking-wider text-cyan-300">Daily Chamber Token</span>
+        <div class="text-3xl font-black text-white tracking-tight" id="slip-token-num">SERIAL #04</div>
+        <div class="text-[10px] text-emerald-400 font-bold" id="slip-token-status">● Confirmed & Locked</div>
+      </div>
+
+      <!-- Patient & Doctor Info Grid -->
+      <div class="space-y-2 text-xs text-slate-300 bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Patient:</span>
+          <strong class="text-white" id="slip-patient-name">Rahim Ahmed</strong>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Consultant:</span>
+          <strong class="text-white" id="slip-doctor-name">Dr. Karim Chowdhury</strong>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Chamber:</span>
+          <strong class="text-cyan-300">Room #402, Level 4</strong>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Date & Slot:</span>
+          <strong class="text-white" id="slip-date-time">Thu, 10 Sep · 10:40 AM</strong>
+        </div>
+        <div class="flex justify-between border-t border-slate-800 pt-1.5">
+          <span class="text-slate-400">Consultation Fee:</span>
+          <strong class="text-emerald-400">৳1,200 (Paid at Counter)</strong>
+        </div>
+      </div>
+
+      <!-- Scannable QR Code -->
+      <div class="text-center space-y-2">
+        <div class="w-36 h-36 bg-white p-2.5 rounded-2xl mx-auto shadow-md flex items-center justify-center">
+          <!-- Vector QR SVG -->
+          <svg viewBox="0 0 100 100" class="w-full h-full text-slate-900" fill="currentColor">
+            <path d="M0 0h30v30H0zm4 4h22v22H4zM8 8h14v14H8zm62-8h30v30H70zm4 4h22v22H74zM78 8h14v14H78zM0 70h30v30H0zm4 4h22v22H4zM8 78h14v14H8zm40-70h6v12h-6zm12 0h6v6h-6zm0 10h6v8h-6zm-12 12h12v6h-12zm24 6h6v12h-6zm10 0h6v6h-6zm-10 16h16v6H74zm-34 0h12v12H40zm16 0h6v6h-6zm6 6h12v6H62zm-6 6h6v12h-6zm12 0h16v6H68zm-28 6h6v6h-6zm-10 6h16v6H30zm32 0h6v12h-6zm12 0h16v6H74z"/>
+          </svg>
+        </div>
+        <p class="text-[10px] text-slate-400">Scan at chamber reception or OPD counter for 1-tap check-in.</p>
+      </div>
+
+      <!-- Slip Actions -->
+      <div class="flex gap-2 pt-1">
+        <button onclick="downloadSlipMock()" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs transition shadow-md">
+          📥 Download PDF Slip
+        </button>
+        <button onclick="shareSlipMock()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+          Share
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ==================================================================== -->
+  <!-- MODAL: PATIENT CLINICAL DETAILS & CHIEF COMPLAINT DRAWER             -->
+  <!-- ==================================================================== -->
+  <div id="modal-patient-clinical" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card border border-slate-700 rounded-[32px] p-6 max-w-md w-full shadow-2xl relative space-y-4">
+      
+      <!-- Close Button -->
+      <button onclick="closePatientClinicalModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white">
+        ✕
+      </button>
+
+      <!-- Clinical Header -->
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-800">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-base shadow">
+          <span id="cp-initials">PT</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-extrabold text-white" id="cp-name">Patient Name</h3>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold" id="cp-serial">#02</span>
+          </div>
+          <p class="text-xs text-slate-400" id="cp-demographics">45 Yrs, Male · Blood Group A+</p>
+        </div>
+      </div>
+
+      <!-- Chief Complaint / Problem Box -->
+      <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-cyan-950/30 border border-cyan-500/30 space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold tracking-wider text-cyan-300 flex items-center gap-1">
+            <span>🩺</span> Chief Health Problem / Reason for Visit
+          </span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200 font-semibold" id="cp-visittype">New Consultation</span>
+        </div>
+        <p class="text-xs text-white leading-relaxed font-medium pt-1" id="cp-problem">
+          Patient complaint details...
+        </p>
+      </div>
+
+      <!-- Vitals & Triage Data -->
+      <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs">
+        <span class="text-slate-400 text-[10px] uppercase tracking-wider font-bold block">Recorded Vitals at Reception:</span>
+        <div class="text-emerald-400 font-bold font-mono text-[11px]" id="cp-vitals">BP: 148/95 mmHg · Pulse: 86 bpm</div>
+      </div>
+
+      <!-- Medical History & Notes -->
+      <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1 text-xs">
+        <span class="text-slate-400 text-[10px] uppercase tracking-wider font-bold block">Past Clinical History:</span>
+        <p class="text-slate-300 text-[11px] leading-relaxed" id="cp-history">No prior cardiac evaluation on file.</p>
+      </div>
+
+      <!-- Action -->
+      <div class="flex gap-2 pt-1">
+        <button onclick="advanceDoctorQueue(); closePatientClinicalModal();" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-xs shadow-md transition">
+          Call Patient into Examination Room
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ==================================================================== -->
+  <!-- MODAL: ADMIN DOCTOR ONBOARDING & PROFILING FORM                      -->
+  <!-- ==================================================================== -->
+  <div id="modal-onboard-doctor" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card border border-slate-700 rounded-[32px] p-6 max-w-lg w-full shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+      
+      <!-- Close Button -->
+      <button onclick="closeOnboardDoctorModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white">
+        ✕
+      </button>
+
+      <!-- Modal Header -->
+      <div class="pb-3 border-b border-slate-800">
+        <span class="text-[10px] uppercase font-bold tracking-widest text-cyan-400">Admin Console · Onboarding</span>
+        <h3 class="text-base font-extrabold text-white mt-0.5">Onboard New Specialist Doctor</h3>
+        <p class="text-[11px] text-slate-400">Enters doctor into database, initializes schedules, and publishes profile to mobile app.</p>
+      </div>
+
+      <!-- Form Inputs -->
+      <form onsubmit="submitOnboardDoctor(event)" class="space-y-3.5 text-xs">
+        
+        <!-- Row 1: Full Name & Bengali Name -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Doctor Full Name (English) *</label>
+            <input type="text" id="onboard-doc-name" required placeholder="e.g. Dr. Tanvir Hossain" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Doctor Name (বাংলা)</label>
+            <input type="text" id="onboard-doc-name-bn" placeholder="e.g. ডা. তানভীর হোসেন" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 font-bangla"/>
+          </div>
+        </div>
+
+        <!-- Row 2: Email & Phone -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Clinic Email (Login ID) *</label>
+            <input type="email" id="onboard-doc-email" required placeholder="doctor@clinic.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Doctor Contact Phone</label>
+            <input type="text" id="onboard-doc-phone" placeholder="+880 1712-345678" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Row 3: Specialization & BMDC Reg # -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Clinical Specialization *</label>
+            <select id="onboard-doc-specialty" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+              <option value="Cardiology">Cardiology (হৃদরোগ)</option>
+              <option value="Pediatrics">Pediatrics (শিশু রোগ)</option>
+              <option value="Neurology">Neurology (নিউরোলজি)</option>
+              <option value="Orthopedics">Orthopedics (অর্থোপেডিক)</option>
+              <option value="Gynecology">Gynecology (স্ত্রীরোগ)</option>
+              <option value="General Medicine">General Medicine (মেডিসিন)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">BMDC Reg Number *</label>
+            <input type="text" id="onboard-doc-bmdc" required placeholder="e.g. A-54982" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 font-mono"/>
+          </div>
+        </div>
+
+        <!-- Row 4: Degrees & Experience -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Qualifications / Degrees *</label>
+            <input type="text" id="onboard-doc-degrees" required placeholder="e.g. MBBS, FCPS, MD" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Experience (Years)</label>
+            <input type="number" id="onboard-doc-exp" value="12" min="1" max="50" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Row 5: Chamber Facility & Consultation Fee -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Assigned Chamber Room *</label>
+            <input type="text" id="onboard-doc-chamber" required placeholder="e.g. Chamber #302, Level 3" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"/>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">Consultation Fee (BDT) *</label>
+            <input type="number" id="onboard-doc-fee" value="1200" step="50" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 font-mono"/>
+          </div>
+        </div>
+
+        <!-- Row 6: Professional Bio -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-300 mb-1">Clinical Biography / Summary</label>
+          <textarea id="onboard-doc-bio" rows="2" placeholder="Brief clinician introduction and clinical interests..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <!-- Row 7: Photo Image URL (Optional) -->
+        <div>
+          <label class="block text-[11px] font-bold text-slate-300 mb-1">Doctor Profile Photo URL (High-Res CDN / Web)</label>
+          <input type="url" id="onboard-doc-image" placeholder="https://images.unsplash.com/... (leave blank for automatic smart avatar)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 font-mono text-[11px]"/>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2">
+          <button type="submit" class="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-teal-600 hover:from-blue-600 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2">
+            <span>💾 Save & Publish Doctor Profile to App</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT STATE ENGINE -->
+  <script>
+        const doctorsData = [
+      {
+        id: 'doc-1',
+        name: 'Prof. Dr. Karim Chowdhury',
+        nameBn: 'অধ্যাপক ডা. করিম চৌধুরী',
+        designation: 'Senior Consultant & Professor',
+        designationBn: 'সিনিয়র কনসালট্যান্ট ও অধ্যাপক',
+        specialty: 'Cardiology',
+        specialtyBn: 'হৃদরোগ ও রক্তচাপ বিশেষজ্ঞ',
+        degrees: 'MBBS, FCPS (Cardiology), MD (Cardiology, BSMMU), FACC (USA)',
+        bmdc: 'BMDC Reg # A-28491',
+        image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80',
+        facility: 'Popular Diagnostic Centre, Dhanmondi',
+        facilityBn: 'পপুলার ডায়াগনস্টিক সেন্টার, ধানমন্ডি',
+        chamber: 'Chamber #402, Level 4, House 16, Road 2, Dhanmondi, Dhaka',
+        consultationFee: 1200,
+        followupFee: 800,
+        rating: 4.9,
+        reviewsCount: 164,
+        experienceYears: 18,
+        bio: 'Senior Interventional Cardiologist specializing in adult cardiac catheterization, coronary angioplasty, hypertension, and heart failure management.',
+        avatarBg: 'from-blue-600 via-indigo-600 to-teal-500',
+        initials: 'KC'
+      },
+      {
+        id: 'doc-2',
+        name: 'Dr. Fatima Begum',
+        nameBn: 'ডা. ফাতিমা বেগম',
+        designation: 'Associate Professor & Child Specialist',
+        designationBn: 'সহযোগী অধ্যাপক ও শিশু বিশেষজ্ঞ',
+        specialty: 'Pediatrics',
+        specialtyBn: 'নবজাতক ও শিশু রোগ বিশেষজ্ঞ',
+        degrees: 'MBBS, DCH, FCPS (Pediatrics), Fellow Neonatology (Singapore)',
+        bmdc: 'BMDC Reg # A-34190',
+        image: 'https://images.unsplash.com/photo-1594824813688-66df656a59b6?w=300&auto=format&fit=crop&q=80',
+        facility: 'Evercare Hospital, Dhaka',
+        facilityBn: 'এভারকেয়ার হাসপাতাল, ঢাকা',
+        chamber: 'OPD Level 3, Plot 81, Block E, Bashundhara R/A, Dhaka',
+        consultationFee: 1500,
+        followupFee: 1000,
+        rating: 4.8,
+        reviewsCount: 118,
+        experienceYears: 14,
+        bio: 'Renowned Pediatrician with extensive expertise in neonatal critical care, childhood immunization, asthma, and developmental milestones.',
+        avatarBg: 'from-purple-600 via-pink-600 to-rose-500',
+        initials: 'FB'
+      },
+      {
+        id: 'doc-3',
+        name: 'Dr. Tanvir Hossain',
+        nameBn: 'ডা. তানভীর হোসেন',
+        designation: 'Consultant Neurologist & Stroke Physician',
+        designationBn: 'কনসালট্যান্ট নিউরোলজিস্ট ও স্ট্রোক বিশেষজ্ঞ',
+        specialty: 'Neurology',
+        specialtyBn: 'মস্তিষ্ক ও স্নায়ুরোগ বিশেষজ্ঞ',
+        degrees: 'MBBS, MD (Neurology, BSMMU), FINR (Switzerland)',
+        bmdc: 'BMDC Reg # A-42718',
+        image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=300&auto=format&fit=crop&q=80',
+        facility: 'Square Hospital, Panthapath',
+        facilityBn: 'স্কয়ার হাসপাতাল, পান্থপথ',
+        chamber: 'Chamber #305, West Tower, Panthapath, Dhaka',
+        consultationFee: 1400,
+        followupFee: 900,
+        rating: 4.9,
+        reviewsCount: 92,
+        experienceYears: 12,
+        bio: 'Expert in acute stroke thrombolysis, migraine, epilepsy, neuropathies, Parkinson\'s disease, and clinical neuro-electrophysiology.',
+        avatarBg: 'from-cyan-600 via-sky-600 to-blue-700',
+        initials: 'TH'
+      },
+      {
+        id: 'doc-4',
+        name: 'Prof. Dr. Nusrat Jahan',
+        nameBn: 'অধ্যাপক ডা. নুসরাত জাহান',
+        designation: 'Professor & Senior Laparoscopic Surgeon',
+        designationBn: 'অধ্যাপক ও স্ত্রীরোগ সার্জন',
+        specialty: 'Gynecology',
+        specialtyBn: 'স্ত্রীরোগ ও প্রসূতিবিদ্যা বিশেষজ্ঞ',
+        degrees: 'MBBS, FCPS (OBGYN), MS, Fellow Laparoscopic Surgery (India)',
+        bmdc: 'BMDC Reg # A-25603',
+        image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&auto=format&fit=crop&q=80',
+        facility: 'Central Hospital, Green Road',
+        facilityBn: 'সেন্ট্রাল হাসপাতাল, গ্রিন রোড',
+        chamber: 'Room #210, Level 2, Green Road, Dhanmondi, Dhaka',
+        consultationFee: 1500,
+        followupFee: 1000,
+        rating: 5.0,
+        reviewsCount: 210,
+        experienceYears: 20,
+        bio: 'Leading Specialist in high-risk pregnancy care, minimally invasive laparoscopic hysterectomy, fertility preservation, and maternal health.',
+        avatarBg: 'from-rose-600 via-pink-600 to-amber-500',
+        initials: 'NJ'
+      },
+      {
+        id: 'doc-5',
+        name: 'Dr. Mahfuzur Rahman',
+        nameBn: 'ডা. মাহফুজুর রহমান',
+        designation: 'Associate Consultant (Orthopedics & Trauma)',
+        designationBn: 'অর্থোপেডিক ও ট্রমা সার্জন',
+        specialty: 'Orthopedics',
+        specialtyBn: 'হাড়-জোড় ও বাতব্যথা বিশেষজ্ঞ',
+        degrees: 'MBBS, MS (Orthopedics, NITOR), Fellow Joint Arthroplasty (Thailand)',
+        bmdc: 'BMDC Reg # A-38914',
+        image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300&auto=format&fit=crop&q=80',
+        facility: 'Popular Diagnostic Centre, Shantinagar',
+        facilityBn: 'পপুলার ডায়াগনস্টিক, শান্তিনগর',
+        chamber: 'Chamber #501, Level 5, Shantinagar, Dhaka',
+        consultationFee: 1200,
+        followupFee: 700,
+        rating: 4.7,
+        reviewsCount: 85,
+        experienceYears: 15,
+        bio: 'Specialist in primary and revision knee/hip joint replacement, sports injury ligament repairs, and complex fracture management.',
+        avatarBg: 'from-emerald-600 via-teal-600 to-cyan-700',
+        initials: 'MR'
+      },
+      {
+        id: 'doc-6',
+        name: 'Dr. Ahsan Habib',
+        nameBn: 'ডা. আহসান হাবিব',
+        designation: 'Consultant Physician & Diabetologist',
+        designationBn: 'মেডিসিন ও ডায়াবেটিস বিশেষজ্ঞ',
+        specialty: 'General Medicine',
+        specialtyBn: 'মেডিসিন ও ডায়াবেটিস বিশেষজ্ঞ',
+        degrees: 'MBBS, FCPS (Medicine), MACP (USA), CCD (BIRDEM)',
+        bmdc: 'BMDC Reg # A-31205',
+        image: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=300&auto=format&fit=crop&q=80',
+        facility: 'BIRDEM General Hospital & Diagnostic',
+        facilityBn: 'বারডেম জেনারেল হাসপাতাল, শাহবাগ',
+        chamber: 'Room #108, Level 1, Kazi Nazrul Islam Ave, Shahbagh, Dhaka',
+        consultationFee: 1000,
+        followupFee: 600,
+        rating: 4.9,
+        reviewsCount: 175,
+        experienceYears: 16,
+        bio: 'Dedicated clinician focusing on early detection and comprehensive management of Type 2 Diabetes, hypertension, metabolic syndrome, and kidney protection.',
+        avatarBg: 'from-teal-600 via-blue-600 to-indigo-700',
+        initials: 'AH'
+      }
+    ];
+
+        const slotDatabase = {
+      'doc-1': {
+        '2026-09-08': [{ time: '10:00 AM - 10:30 AM', status: 'available' }],
+        '2026-09-10': [
+          { time: '10:00 AM - 10:30 AM', status: 'booked' },
+          { time: '10:40 AM - 11:10 AM', status: 'booked' },
+          { time: '11:20 AM - 11:50 AM', status: 'available' },
+          { time: '12:00 PM - 12:30 PM', status: 'available' },
+          { time: '04:00 PM - 04:30 PM', status: 'available' }
+        ]
+      },
+      'doc-2': {
+        '2026-09-10': [
+          { time: '09:00 AM - 09:30 AM', status: 'available' },
+          { time: '09:40 AM - 10:10 AM', status: 'available' },
+          { time: '10:20 AM - 10:50 AM', status: 'available' },
+          { time: '11:00 AM - 11:30 AM', status: 'booked' }
+        ]
+      },
+      'doc-3': {
+        '2026-09-10': [
+          { time: '04:00 PM - 04:30 PM', status: 'available' },
+          { time: '04:40 PM - 05:10 PM', status: 'available' },
+          { time: '05:20 PM - 05:50 PM', status: 'available' }
+        ]
+      },
+      'doc-4': {
+        '2026-09-10': [
+          { time: '05:00 PM - 05:30 PM', status: 'available' },
+          { time: '05:40 PM - 06:10 PM', status: 'available' },
+          { time: '06:20 PM - 06:50 PM', status: 'available' }
+        ]
+      },
+      'doc-5': {
+        '2026-09-10': [
+          { time: '10:00 AM - 10:30 AM', status: 'available' },
+          { time: '10:40 AM - 11:10 AM', status: 'available' },
+          { time: '11:20 AM - 11:50 AM', status: 'available' }
+        ]
+      },
+      'doc-6': {
+        '2026-09-10': [
+          { time: '06:00 PM - 06:30 PM', status: 'available' },
+          { time: '06:40 PM - 07:10 PM', status: 'available' },
+          { time: '07:20 PM - 07:50 PM', status: 'available' }
+        ]
+      }
+    };
+
+    // State Variables
+    let currentLang = 'en';
+    let currentPlatform = 'mobile';
+    let activeDoctorId = 'doc-1';
+    let currentDate = '2026-09-10';
+    let selectedSlotTime = '11:20 AM - 11:50 AM';
+    let currentSearchTerm = '';
+    let currentSpecialtyFilter = 'All';
+
+    // Doctor Live Queue Status
+    let currentServingSerial = 2; // Dr is currently seeing Serial #2
+
+    // Patient's Active Appointments (with Serial #)
+    let myAppointments = [
+      {
+        id: 'apt-101',
+        serialNumber: 4, // Patient's Serial is #4
+        patientName: 'Rahim Ahmed',
+        doctorId: 'doc-1',
+        doctor: 'Dr. Karim Chowdhury',
+        specialty: 'Cardiology',
+        facility: 'Popular Diagnostic Centre, Dhanmondi',
+        chamberRoom: 'Room #402, Level 4',
+        date: 'Thu, 10 Sep 2026',
+        time: '10:40 AM - 11:10 AM',
+        fee: 1200,
+        status: 'confirmed'
+      }
+    ];
+
+    // Doctor Web Queue
+    let currentWebRole = 'doctor'; // 'doctor' (Clinical Full Access) or 'admin' (Operational Masked)
+
+    let webQueue = [
+      { 
+        id: 1, 
+        serial: 1, 
+        time: '10:00 AM – 10:20 AM', 
+        name: 'Farhana Yasmin', 
+        age: 28, 
+        gender: 'Female', 
+        phone: '+880 1711-234567',
+        bloodGroup: 'B+',
+        visitType: 'Follow-up Consultation',
+        problem: 'Post-medication blood pressure checkup. Complaining of occasional morning dizziness after starting Beta-blocker 2 weeks ago.',
+        vitals: 'BP: 115/75 mmHg · Pulse: 68 bpm · Weight: 56 kg',
+        history: 'Known case of mild essential hypertension since 2024.',
+        status: 'completed' 
+      },
+      { 
+        id: 2, 
+        serial: 2, 
+        time: '10:20 AM – 10:40 AM', 
+        name: 'Tanvir Alam', 
+        age: 46, 
+        gender: 'Male', 
+        phone: '+880 1819-876543',
+        bloodGroup: 'A+',
+        visitType: 'New Cardiac Consultation',
+        problem: 'Severe chest tightness and dyspnea on exertion for 1 week. Pain radiates to left shoulder when climbing stairs. Smoker for 20 years.',
+        vitals: 'BP: 148/95 mmHg · Pulse: 86 bpm · Weight: 78 kg',
+        history: 'No prior cardiac evaluation on file. Borderline diabetic.',
+        status: 'in_queue' 
+      },
+      { 
+        id: 3, 
+        serial: 3, 
+        time: '10:40 AM – 11:00 AM', 
+        name: 'Anisur Rahman', 
+        age: 52, 
+        gender: 'Male', 
+        phone: '+880 1912-345678',
+        bloodGroup: 'O+',
+        visitType: 'Report & Echo Review',
+        problem: 'Review of 2D-Echocardiogram and Lipid profile reports. Follow-up after stent placement in 2023. Routine annual review.',
+        vitals: 'BP: 130/80 mmHg · Pulse: 72 bpm · Weight: 71 kg',
+        history: 'Post-PCI (DES to LAD in 2023), taking Aspirin and Statin.',
+        status: 'waiting' 
+      },
+      { 
+        id: 4, 
+        serial: 4, 
+        time: '11:00 AM – 11:20 AM', 
+        name: 'Rahim Ahmed (You)', 
+        age: 34, 
+        gender: 'Male', 
+        phone: '+880 1711-987654',
+        bloodGroup: 'O+',
+        visitType: 'New Consultation',
+        problem: 'Recurrent chest tightness and palpitation for 4 days. Strong paternal family history of early myocardial infarction.',
+        vitals: 'BP: 135/85 mmHg · Pulse: 78 bpm · Weight: 68 kg',
+        history: 'First clinical consultation with Dr. Karim Chowdhury.',
+        status: 'waiting' 
+      }
+    ];
+
+    let notificationsList = [
+      {
+        id: 'notif-1',
+        type: 'queue',
+        title: 'Chamber Live Queue Update 🟢',
+        titleBn: 'চেম্বারের সিরিয়াল আপডেট 🟢',
+        body: 'Doctor is now serving Serial #02. Your serial is #04. Est. wait time: ~20 mins.',
+        bodyBn: 'ডাক্তার বর্তমানে ২ নম্বর সিরিয়াল দেখছেন। আপনার সিরিয়াল ৪ নম্বর। আনুমানিক সময়: ২০ মিনিট।',
+        time: '5m ago',
+        isRead: false
+      }
+    ];
+
+    
+    // Phone Theme Controller (Trust & Precision Palette)
+    let currentPhoneTheme = 'light'; // Default to Clinical Light (Recommended)
+
+    function setPhoneTheme(theme) {
+      currentPhoneTheme = theme;
+      const phone = document.getElementById('phone-screen-container');
+      const btnLight = document.getElementById('btn-theme-light');
+      const btnDark = document.getElementById('btn-theme-dark');
+
+      if (theme === 'light') {
+        phone.classList.add('theme-clinical-light');
+        btnLight.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-white text-slate-900 shadow-sm transition-all";
+        btnDark.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition-all";
+        showToast("☀️ Clinical Light Theme Active", "High-contrast palette for clinic lobby & patient slips.");
+      } else {
+        phone.classList.remove('theme-clinical-light');
+        btnDark.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold bg-slate-700 text-white shadow-sm transition-all";
+        btnLight.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition-all";
+        showToast("🌙 Slate Night Theme Active", "Ergonomic dark palette for low-light environments.");
+      }
+      renderDoctorList();
+      renderMyAppointments();
+      renderNotifications();
+    }
+
+    
+    // Web Sub-Tab Switcher: Live Queue vs Time Slot Creator
+    let currentWebTab = 'queue';
+
+    
+    // Switch between Web Subtabs: Queue, Slots, Onboard
+    function switchWebTab(tab) {
+      currentWebTab = tab;
+      const btnQueue = document.getElementById('web-subtab-queue');
+      const btnSlots = document.getElementById('web-subtab-slots');
+      const btnOnboard = document.getElementById('web-subtab-onboard');
+
+      const panelQueue = document.getElementById('web-panel-queue');
+      const panelSlots = document.getElementById('web-panel-slots');
+      const panelOnboard = document.getElementById('web-panel-onboard');
+
+      [panelQueue, panelSlots, panelOnboard].forEach(p => { if (p) p.classList.add('hidden'); });
+      [btnQueue, btnSlots, btnOnboard].forEach(b => { 
+        if (b) b.className = "flex items-center gap-2 px-3.5 py-2 rounded-xl text-slate-400 hover:text-white transition-all"; 
+      });
+
+      if (tab === 'queue') {
+        if (panelQueue) panelQueue.classList.remove('hidden');
+        if (btnQueue) btnQueue.className = "flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+      } else if (tab === 'slots') {
+        if (panelSlots) panelSlots.classList.remove('hidden');
+        if (btnSlots) btnSlots.className = "flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+        updateSlotCalculationPreview();
+      } else if (tab === 'onboard') {
+        if (panelOnboard) panelOnboard.classList.remove('hidden');
+        if (btnOnboard) btnOnboard.className = "flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+        renderAdminDoctorsTable();
+      }
+    }
+
+        function renderAdminDoctorsTable() {
+      const tbody = document.getElementById('admin-doctors-tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = doctorsData.map(doc => `
+        <tr class="hover:bg-slate-900/40 transition">
+          <td class="p-3.5">
+            <div class="flex items-center gap-3">
+              <!-- Doctor Image -->
+              <div class="w-10 h-10 rounded-xl overflow-hidden border border-blue-500/40 shrink-0 bg-slate-800 shadow-sm">
+                <img 
+                  src="${doc.image}" 
+                  alt="${doc.name}" 
+                  class="w-full h-full object-cover" 
+                  onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80';"
+                />
+              </div>
+              <div>
+                <div class="font-bold text-white text-xs flex items-center gap-1.5">
+                  <span>${doc.name}</span>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Verified</span>
+                </div>
+                <div class="text-[10px] text-cyan-300 font-mono font-semibold">${doc.bmdc} · ${doc.degrees.split(',')[0]}, ${doc.degrees.split(',')[1] || ''}</div>
+              </div>
+            </div>
+          </td>
+          <td class="p-3.5">
+            <span class="px-2.5 py-1 rounded-lg bg-blue-900/30 text-blue-300 font-semibold border border-blue-500/20 text-[10px]">
+              ${doc.specialty}
+            </span>
+          </td>
+          <td class="p-3.5 text-[11px]">
+            <div class="text-white font-medium">${doc.chamber.split(',')[0]}</div>
+            <div class="text-slate-400 text-[10px]">${doc.facility}</div>
+          </td>
+          <td class="p-3.5 font-mono text-cyan-300 font-bold">
+            <div>৳${doc.consultationFee} <span class="text-[9px] text-slate-400 font-normal">New</span></div>
+            <div class="text-[9.5px] text-slate-400 font-normal">৳${doc.followupFee || 800} Follow-up</div>
+          </td>
+          <td class="p-3.5 text-slate-300">
+            ${doc.experienceYears} Years
+          </td>
+          <td class="p-3.5">
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+              ● Active & Bookable
+            </span>
+          </td>
+          <td class="p-3.5 text-right">
+            <button onclick="editDoctorSlots('${doc.id}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[10px] font-bold transition">
+              Manage Shifts
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      const statDoc = document.getElementById('stat-doc-count');
+      if (statDoc) statDoc.textContent = `${doctorsData.length} Specialists`;
+    }
+
+    function openOnboardDoctorModal() {
+      document.getElementById('modal-onboard-doctor').classList.remove('hidden');
+    }
+
+    function closeOnboardDoctorModal() {
+      document.getElementById('modal-onboard-doctor').classList.add('hidden');
+    }
+
+    function submitOnboardDoctor(e) {
+      e.preventDefault();
+      const name = document.getElementById('onboard-doc-name').value;
+      const nameBn = document.getElementById('onboard-doc-name-bn').value || name;
+      const specialty = document.getElementById('onboard-doc-specialty').value;
+      const bmdc = document.getElementById('onboard-doc-bmdc').value;
+      const degrees = document.getElementById('onboard-doc-degrees').value;
+      const exp = parseInt(document.getElementById('onboard-doc-exp').value) || 8;
+      const chamber = document.getElementById('onboard-doc-chamber').value;
+      const fee = parseInt(document.getElementById('onboard-doc-fee').value) || 1200;
+      const bio = document.getElementById('onboard-doc-bio').value || 'Consultant specialist providing comprehensive care.';
+
+      const newId = 'doc-' + (doctorsData.length + 1);
+      const initials = name.replace('Dr. ', '').split(' ').map(n => n[0]).join('').substring(0, 2);
+
+      const imgInput = document.getElementById('onboard-doc-image');
+      const customImg = imgInput && imgInput.value.trim() ? imgInput.value.trim() : 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=300&auto=format&fit=crop&q=80';
+
+      const newDoc = {
+        id: newId,
+        image: customImg,
+        name: name,
+        nameBn: nameBn,
+        specialty: specialty,
+        specialtyBn: specialty,
+        degrees: degrees,
+        bmdc: bmdc,
+        facility: 'Popular Diagnostic Centre',
+        facilityBn: 'পপুলার ডায়াগনস্টিক সেন্টার',
+        chamber: chamber,
+        consultationFee: fee,
+        rating: 5.0,
+        reviewsCount: 1,
+        experienceYears: exp,
+        bio: bio,
+        avatarBg: 'from-emerald-500 via-teal-600 to-blue-600',
+        initials: initials
+      };
+
+      // Add to doctor database
+      doctorsData.push(newDoc);
+
+      // Initialize slot database for this new doctor
+      slotDatabase[newId] = {
+        '2026-09-10': [
+          { time: '10:00 AM - 10:30 AM', status: 'available' },
+          { time: '10:40 AM - 11:10 AM', status: 'available' },
+          { time: '11:20 AM - 11:50 AM', status: 'available' }
+        ]
+      };
+
+      closeOnboardDoctorModal();
+      renderAdminDoctorsTable();
+      renderDoctorList(); // Live sync: instantly visible in patient mobile app!
+
+      showToast(
+        "🎉 Specialist Onboarded Successfully!", 
+        `${name} (${specialty}) is now live in the clinic directory & patient search app.`
+      );
+    }
+
+    function editDoctorSlots(docId) {
+      switchWebTab('slots');
+      const select = document.getElementById('slot-gen-doctor');
+      if (select) {
+        // Add doctor to select if not there
+        if (![...select.options].some(o => o.value === docId)) {
+          const doc = doctorsData.find(d => d.id === docId);
+          if (doc) select.innerHTML += `<option value="${doc.id}">${doc.name} (${doc.specialty})</option>`;
+        }
+        select.value = docId;
+      }
+    }
+
+    function old_switchWebTab(tab) {
+      currentWebTab = tab;
+      const btnQueue = document.getElementById('web-subtab-queue');
+      const btnSlots = document.getElementById('web-subtab-slots');
+      const panelQueue = document.getElementById('web-panel-queue');
+      const panelSlots = document.getElementById('web-panel-slots');
+
+      if (tab === 'queue') {
+        btnQueue.className = "flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+        btnSlots.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-slate-400 hover:text-white transition-all";
+        panelQueue.classList.remove('hidden');
+        panelSlots.classList.add('hidden');
+      } else {
+        btnSlots.className = "flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold shadow-md transition-all";
+        btnQueue.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-slate-400 hover:text-white transition-all";
+        panelSlots.classList.remove('hidden');
+        panelQueue.classList.add('hidden');
+        updateSlotCalculationPreview();
+      }
+    }
+
+    function updateSlotCalculationPreview() {
+      const duration = parseInt(document.getElementById('slot-duration-select').value) || 30;
+      const buffer = parseInt(document.getElementById('slot-buffer-select').value) || 10;
+      const horizonRadio = document.querySelector('input[name="gen-horizon"]:checked');
+      const horizon = horizonRadio ? horizonRadio.value : 'month';
+
+      // Count checked days
+      let daysChecked = 0;
+      ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'].forEach(d => {
+        const el = document.getElementById('day-' + d);
+        if (el && el.checked) daysChecked++;
+      });
+
+      // Shift hours: 09:00 to 13:00 = 4 hours = 240 mins
+      const totalShiftMins = 240;
+      const slotUnit = duration + buffer;
+      const slotsPerDay = Math.floor(totalShiftMins / slotUnit);
+
+      const totalDays = horizon === 'month' ? Math.round((30 / 7) * daysChecked) : daysChecked;
+      const totalGenerated = slotsPerDay * totalDays;
+
+      const previewDaily = document.getElementById('preview-daily-slots');
+      const previewTotal = document.getElementById('preview-total-slots');
+
+      if (previewDaily) previewDaily.textContent = `${slotsPerDay} Patient Serials / day`;
+      if (previewTotal) previewTotal.textContent = `${totalGenerated} Slots (${totalDays} Clinic Days)`;
+    }
+
+    function executeBulkSlotGeneration() {
+      const duration = document.getElementById('slot-duration-select').value;
+      const buffer = document.getElementById('slot-buffer-select').value;
+      const horizonRadio = document.querySelector('input[name="gen-horizon"]:checked');
+      const horizon = horizonRadio ? horizonRadio.value : 'month';
+
+      // Dynamically add a new date to patient mobile slot database to show instant synchronization!
+      const newDateStr = '2026-10-01';
+      slotDatabase['doc-1'][newDateStr] = [
+        { time: '09:00 AM - 09:30 AM', status: 'available' },
+        { time: '09:40 AM - 10:10 AM', status: 'available' },
+        { time: '10:20 AM - 10:50 AM', status: 'available' },
+        { time: '11:00 AM - 11:30 AM', status: 'available' },
+        { time: '11:40 AM - 12:10 PM', status: 'available' },
+        { time: '12:20 PM - 12:50 PM', status: 'available' }
+      ];
+
+      showToast(
+        "🎉 Slots Published to Mobile App!", 
+        `132 slots successfully generated for Dr. Karim Chowdhury for the whole ${horizon}. Patients can now book on mobile!`
+      );
+
+      // Add a notification card
+      notificationsList.unshift({
+        id: 'notif-bulk-' + Date.now(),
+        type: 'booking',
+        title: 'New Monthly Slots Published 🗓️',
+        titleBn: 'নতুন মাসের স্লট পাবলিশ হয়েছে 🗓️',
+        body: `Dr. Karim Chowdhury opened 132 slots for ${horizon === 'month' ? 'October 2026' : 'next week'}. Book early to secure token #01!`,
+        bodyBn: `ডা. করিম চৌধুরী পরবর্তী মাসের জন্য ১৩২টি সিরিয়াল স্লট ওপেন করেছেন।`,
+        time: 'Just now',
+        isRead: false
+      });
+      renderNotifications();
+      const badge = document.getElementById('notif-badge');
+      if (badge) badge.textContent = notificationsList.filter(n => !n.isRead).length;
+    }
+
+    function openAddShiftModal() {
+      showToast("Shift Template Builder", "Configure default recurring shifts for Sunday, Tuesday, Thursday.");
+    }
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.getElementById('lang-en').className = lang === 'en' 
+        ? "px-2.5 py-1 rounded-lg font-bold bg-cyan-500 text-white transition-all shadow-sm"
+        : "px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition-all";
+      document.getElementById('lang-bn').className = lang === 'bn' 
+        ? "px-2.5 py-1 rounded-lg font-bold bg-cyan-500 text-white transition-all shadow-sm font-bangla"
+        : "px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition-all font-bangla";
+
+      renderDoctorList();
+      renderMyAppointments();
+    }
+
+    function switchPlatform(p) {
+      currentPlatform = p;
+      if (p === 'mobile') {
+        document.getElementById('view-mobile').classList.remove('hidden');
+        document.getElementById('view-web').classList.add('hidden');
+        document.getElementById('tab-mobile').className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all";
+        document.getElementById('tab-web').className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all";
+      } else {
+        document.getElementById('view-mobile').classList.add('hidden');
+        document.getElementById('view-web').classList.remove('hidden');
+        document.getElementById('tab-web').className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md transition-all";
+        document.getElementById('tab-mobile').className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all";
+        renderWebQueue();
+      }
+    }
+
+    function navTo(screen) {
+      ['screen-search', 'screen-profile', 'screen-booking', 'screen-my', 'screen-notifications'].forEach(s => {
+        document.getElementById(s).classList.add('hidden');
+      });
+
+      const navSearch = document.getElementById('m-nav-search');
+      const navMy = document.getElementById('m-nav-my');
+      const navNotif = document.getElementById('m-nav-notif');
+
+      navSearch.className = "flex flex-col items-center gap-1 text-slate-400 hover:text-white";
+      navMy.className = "flex flex-col items-center gap-1 text-slate-400 hover:text-white";
+      navNotif.className = "flex flex-col items-center gap-1 text-slate-400 hover:text-white";
+
+      if (screen === 'search') {
+        document.getElementById('screen-search').classList.remove('hidden');
+        navSearch.className = "flex flex-col items-center gap-1 text-cyan-400";
+        renderDoctorList();
+      } else if (screen === 'profile') {
+        document.getElementById('screen-profile').classList.remove('hidden');
+        renderDoctorProfile(activeDoctorId);
+      } else if (screen === 'booking') {
+        document.getElementById('screen-booking').classList.remove('hidden');
+        renderSlots();
+      } else if (screen === 'my') {
+        document.getElementById('screen-my').classList.remove('hidden');
+        navMy.className = "flex flex-col items-center gap-1 text-cyan-400";
+        renderMyAppointments();
+      } else if (screen === 'notifications') {
+        document.getElementById('screen-notifications').classList.remove('hidden');
+        navNotif.className = "flex flex-col items-center gap-1 text-cyan-400";
+        renderNotifications();
+      }
+    }
+
+    // Advance Doctor Queue Simulator
+    function advanceDoctorQueue() {
+      if (currentServingSerial < 4) {
+        currentServingSerial++;
+        
+        // Update web queue states
+        webQueue.forEach(p => {
+          if (p.serial < currentServingSerial) p.status = 'completed';
+          else if (p.serial === currentServingSerial) p.status = 'in_queue';
+          else p.status = 'waiting';
+        });
+
+        document.getElementById('sim-current-serving').innerText = `Serving: Serial #0${currentServingSerial}`;
+
+        // Trigger in-phone push notification
+        if (currentServingSerial === 3) {
+          triggerPushBanner('Queue Alert: Serial #03 Inside', 'You are next in line (Serial #04)! Please be ready.');
+        } else if (currentServingSerial === 4) {
+          triggerPushBanner("It's Your Turn! 🩺", 'Please enter Room #402. Dr. Karim Chowdhury is ready.');
+        }
+
+        renderMyAppointments();
+        renderWebQueue();
+        showToast('Queue Advanced', `Doctor is now seeing Serial #0${currentServingSerial}.`);
+      } else {
+        showToast('Queue Finished', 'All scheduled patients have been attended.');
+      }
+    }
+
+    // Render My Appointments with Live Serial Tracker & QR Slip Button
+    
+    // Doctor Break & Hold State
+    let isDoctorOnBreak = false;
+    let breakTimerSeconds = 300; // 5 minutes
+    let breakInterval = null;
+
+    function startDoctorBreak(mins) {
+      isDoctorOnBreak = true;
+      breakTimerSeconds = mins * 60;
+
+      // RULE: When doctor takes a break, NO PATIENT can be 'In Chamber'!
+      // Previous patient who was in chamber is marked 'completed' (left the room).
+      webQueue.forEach(p => {
+        if (p.status === 'in_queue') {
+          p.status = 'completed'; // Patient finished and left the chamber!
+        }
+      });
+
+      document.getElementById('web-break-status').innerHTML = `<span class="text-amber-400 font-extrabold">☕ Doctor on Break (${mins} mins) · Chamber Empty</span>`;
+      document.getElementById('web-break-sub').innerText = 'Chamber is empty. No patient inside. All waiting patients held in lobby.';
+      document.getElementById('sim-current-serving').innerHTML = '<span class="text-amber-400 font-bold">Chamber: EMPTY (Doctor on Break)</span>';
+
+      const btnContainer = document.getElementById('break-action-btns');
+      btnContainer.innerHTML = `
+        <span class="text-xs font-mono font-bold text-amber-300 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30" id="break-countdown-display">
+          ⏱️ 05:00 Remaining
+        </span>
+        <button onclick="resumeDoctorQueue()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition shadow">
+          ▶️ Resume Queue & Call Next Patient
+        </button>
+      `;
+
+      // Trigger Push Notification to Waiting Patients!
+      triggerPushBanner('Doctor Taking 5-Min Break ☕', 'Chamber is empty. Doctor taking rest. Queue paused for 5 mins.');
+      showToast('Queue Paused', 'Chamber is now EMPTY. 5-minute doctor rest break started.');
+
+      clearInterval(breakInterval);
+      breakInterval = setInterval(() => {
+        breakTimerSeconds--;
+        if (breakTimerSeconds <= 0) {
+          clearInterval(breakInterval);
+          resumeDoctorQueue();
+        } else {
+          const m = Math.floor(breakTimerSeconds / 60);
+          const s = breakTimerSeconds % 60;
+          const displayStr = `⏱️ 0${m}:${s < 10 ? '0' : ''}${s} Remaining`;
+          const el = document.getElementById('break-countdown-display');
+          if (el) el.innerText = displayStr;
+          
+          const pCountdown = document.getElementById('patient-break-countdown');
+          if (pCountdown) pCountdown.innerText = `0${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+      }, 1000);
+
+      renderMyAppointments();
+    }
+
+    function resumeDoctorQueue() {
+      clearInterval(breakInterval);
+      isDoctorOnBreak = false;
+
+      // Call in the next waiting patient into the chamber!
+      const nextWaiting = webQueue.find(p => p.status === 'waiting');
+      if (nextWaiting) {
+        nextWaiting.status = 'in_queue';
+        currentServingSerial = nextWaiting.serial;
+        document.getElementById('sim-current-serving').innerText = `Serving: Serial #0${currentServingSerial}`;
+        triggerPushBanner(`Serial #0${nextWaiting.serial} Called! 🩺`, 'Doctor break finished. Patient entering chamber.');
+      }
+
+      document.getElementById('web-break-status').innerText = 'Chamber Queue Active (Resumed)';
+      document.getElementById('web-break-sub').innerText = `Doctor is attending Serial #0${currentServingSerial} inside chamber`;
+
+      const btnContainer = document.getElementById('break-action-btns');
+      btnContainer.innerHTML = `
+        <button onclick="startDoctorBreak(5)" class="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition flex items-center gap-1.5">
+          <span>☕ Take 5-Min Break / Hold Queue</span>
+        </button>
+        <button onclick="advanceDoctorQueue()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition shadow">
+          ➔ Next Patient (Done Current)
+        </button>
+      `;
+
+      showToast('Queue Resumed', `Chamber reopened. Serial #0${currentServingSerial} called inside.`);
+      renderWebQueue();
+      renderMyAppointments();
+    }
+
+    function generateBulkSchedule(type) {
+      if (type === 'week') {
+        showToast('Next Week Published!', 'Slots for upcoming 7 days generated based on weekly shift rules.');
+      } else {
+        showToast('Whole Month Published!', 'Slots for entire October 2026 (30 days) published with holidays excluded.');
+      }
+    }
+
+    function renderMyAppointments() {
+      const list = document.getElementById('my-appointments-list');
+      if (myAppointments.length === 0) {
+        list.innerHTML = `<div class="p-8 text-center text-slate-500 text-xs">No active appointments.</div>`;
+        return;
+      }
+
+      list.innerHTML = myAppointments.map(a => {
+        // Calculate wait time
+        const serialDiff = a.serialNumber - currentServingSerial;
+        let trackerHtml = '';
+
+        if (isDoctorOnBreak) {
+          // Doctor Break Card displayed on Patient Phone!
+          trackerHtml = `
+            <div class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/50 shadow-lg space-y-2.5">
+              <div class="flex items-center justify-between text-[10px]">
+                <span class="font-bold text-amber-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  ☕ Doctor Taking Rest Break
+                </span>
+                <span class="font-mono text-amber-300 font-bold px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40" id="patient-break-countdown">04:45 Remaining</span>
+              </div>
+
+              <!-- Serial Comparison: Explicitly EMPTY CHAMBER -->
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-amber-500/30">
+                  <span class="text-[9px] text-amber-300 font-bold block uppercase">Chamber Status</span>
+                  <div class="text-sm font-black text-amber-400 mt-1">EMPTY (BREAK)</div>
+                  <span class="text-[8px] text-slate-500 block">No patient inside</span>
+                </div>
+                <div class="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/40">
+                  <span class="text-[9px] text-cyan-300 font-bold block uppercase">Your Serial</span>
+                  <div class="text-lg font-black text-white mt-0.5">SERIAL #0${a.serialNumber}</div>
+                </div>
+              </div>
+
+              <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 text-[10px] space-y-1">
+                <div class="flex justify-between text-slate-300">
+                  <span class="text-slate-400">Next Patient to Enter:</span>
+                  <strong class="text-white">SERIAL #0${currentServingSerial + 1} (Waiting in lobby)</strong>
+                </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed pt-0.5">
+                  The previous patient has left the room. Doctor is on a short break and will call in the next serial shortly.
+                </p>
+              </div>
+            </div>
+          `;
+        } else if (serialDiff > 0) {
+          const estMinutes = serialDiff * 10;
+          trackerHtml = `
+            <!-- Live Queue Tracker Card -->
+            <div class="p-3.5 rounded-2xl bg-gradient-to-br from-slate-900 via-[#0B1528] to-slate-900 border border-cyan-500/30 shadow-lg space-y-2.5">
+              <div class="flex justify-between items-center text-[10px]">
+                <span class="text-cyan-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Chamber Live Status
+                </span>
+                <span class="text-slate-400 font-mono">Chamber #402</span>
+              </div>
+
+              <!-- Serial Comparison -->
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <div class="p-2.5 rounded-xl bg-slate-950/80 border border-rose-900/40">
+                  <span class="text-[9px] text-rose-300 font-bold block uppercase">Currently Inside</span>
+                  <div class="text-lg font-black text-rose-400 mt-0.5">SERIAL #0${currentServingSerial}</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/40">
+                  <span class="text-[9px] text-cyan-300 font-bold block uppercase">Your Serial</span>
+                  <div class="text-lg font-black text-white mt-0.5">SERIAL #0${a.serialNumber}</div>
+                </div>
+              </div>
+
+              <!-- Estimated Wait Progress -->
+              <div class="p-2 rounded-xl bg-slate-950/60 border border-slate-800 flex justify-between items-center text-[10px]">
+                <span class="text-slate-400">Position in Queue:</span>
+                <span class="font-extrabold text-amber-300">${serialDiff} patients ahead (~${estMinutes} mins wait)</span>
+              </div>
+            </div>
+          `;
+        } else {
+          trackerHtml = `
+            <div class="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 shadow-lg text-center space-y-1 pulse-glow">
+              <span class="text-xs font-black text-emerald-300 uppercase tracking-wider">🎉 It's Your Turn!</span>
+              <div class="text-xs text-white">Please proceed into <strong>Room #402</strong>. Doctor is ready.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="p-4 rounded-3xl bg-slate-800/90 border border-slate-700/80 shadow-md space-y-3.5">
+            <!-- Doctor Header -->
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="font-extrabold text-white text-xs">${a.doctor}</div>
+                <div class="text-cyan-300 text-[10px] font-semibold">${a.specialty} · ${a.chamberRoom}</div>
+                <div class="text-slate-400 text-[10px] mt-0.5">${a.facility}</div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 font-black text-[10px] border border-cyan-500/40 shadow-sm">
+                TOKEN #0${a.serialNumber}
+              </span>
+            </div>
+
+            <!-- Tracker Component -->
+            ${trackerHtml}
+
+            <!-- Date & Time Row -->
+            <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800/80 flex justify-between items-center text-[11px]">
+              <span class="text-slate-400">📅 ${a.date}</span>
+              <span class="font-bold text-white">⏰ ${a.time.split(' - ')[0]}</span>
+            </div>
+
+            <!-- Action Buttons: QR Slip & Cancel -->
+            <div class="flex gap-2 pt-1">
+              <button onclick='openSlipModal(${JSON.stringify(a)})' class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold text-[11px] shadow-md flex items-center justify-center gap-1.5 transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                <span>View Digital Slip & QR</span>
+              </button>
+              <button onclick="cancelAppointment('${a.id}')" class="px-3 py-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[11px] font-bold transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Open Digital Slip Modal with dynamic data
+    function openSlipModal(apt) {
+      document.getElementById('slip-token-num').innerText = `SERIAL #0${apt.serialNumber}`;
+      document.getElementById('slip-patient-name').innerText = apt.patientName || 'Rahim Ahmed';
+      document.getElementById('slip-doctor-name').innerText = apt.doctor;
+      document.getElementById('slip-date-time').innerText = `${apt.date} · ${apt.time.split(' - ')[0]}`;
+      document.getElementById('modal-digital-slip').classList.remove('hidden');
+    }
+
+    function closeSlipModal() {
+      document.getElementById('modal-digital-slip').classList.add('hidden');
+    }
+
+    function downloadSlipMock() {
+      showToast('Slip Downloaded', 'PDF Appointment Slip with QR code saved to Downloads.');
+      closeSlipModal();
+    }
+
+    function shareSlipMock() {
+      showToast('Share Token', 'Appointment Slip link copied to clipboard.');
+    }
+
+    // Doctor Search & Directory
+        function renderDoctorList() {
+      const container = document.getElementById('doctor-cards-list');
+      if (!container) return;
+
+      const filtered = doctorsData.filter(d => {
+        const matchesSpec = currentSpecialtyFilter === 'All' || d.specialty.toLowerCase() === currentSpecialtyFilter.toLowerCase();
+        const matchesSearch = !currentSearchTerm || 
+          d.name.toLowerCase().includes(currentSearchTerm.toLowerCase()) || 
+          d.specialty.toLowerCase().includes(currentSearchTerm.toLowerCase()) ||
+          d.facility.toLowerCase().includes(currentSearchTerm.toLowerCase());
+        return matchesSpec && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-400 text-xs">No specialists found matching your search.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(d => `
+        <div class="doctor-card p-3.5 rounded-2xl bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60 shadow-md space-y-3">
+          <div class="flex items-start gap-3">
+            
+            <!-- Real Doctor Image with Fallback -->
+            <div class="relative w-14 h-14 rounded-2xl overflow-hidden border border-cyan-500/40 shadow-md shrink-0 bg-slate-800">
+              <img 
+                src="${d.image}" 
+                alt="${d.name}" 
+                class="w-full h-full object-cover" 
+                onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80';"
+              />
+              <span class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-slate-900" title="BMDC Verified"></span>
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <h3 class="font-extrabold text-white text-xs truncate">${currentLang === 'bn' ? d.nameBn : d.name}</h3>
+                <span class="text-cyan-400 text-[10px] font-bold" title="BMDC Verified">✓</span>
+              </div>
+              <div class="text-[11px] text-cyan-300 font-semibold">${currentLang === 'bn' ? d.specialtyBn : d.specialty}</div>
+              <div class="text-[9.5px] text-slate-400 font-mono truncate mt-0.5">${d.degrees}</div>
+              <div class="text-[10px] text-slate-300 truncate mt-0.5">${d.facility}</div>
+              
+              <div class="flex items-center justify-between mt-1.5 text-[10px] pt-1 border-t border-slate-700/40">
+                <div class="flex items-center gap-1 text-amber-400 font-bold">
+                  <span>★</span> <span>${d.rating}</span>
+                  <span class="text-slate-500 font-normal">(${d.reviewsCount})</span>
+                </div>
+                <div class="text-slate-300">
+                  Fee: <strong class="text-white font-bold">৳${d.consultationFee}</strong>
+                  <span class="text-[8.5px] text-emerald-400 font-semibold">(Pay at Chamber)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="selectDoctorAndOpen('${d.id}')" class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-cyan-500 hover:text-white text-cyan-300 font-bold text-[11px] border border-cyan-500/30 transition-all flex items-center justify-center gap-1.5">
+            <span>View Full Profile & Book Slot</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function selectDoctorAndOpen(docId) {
+      activeDoctorId = docId;
+      navTo('profile');
+    }
+
+        function renderDoctorProfile(docId) {
+      const doc = doctorsData.find(d => d.id === docId) || doctorsData[0];
+      const container = document.getElementById('profile-content-container');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div class="p-4 rounded-3xl bg-gradient-to-br from-slate-800/90 to-slate-900 border border-slate-700/80 text-center space-y-2">
+          
+          <!-- Large Doctor Portrait -->
+          <div class="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-cyan-400 shadow-xl mx-auto bg-slate-800">
+            <img 
+              src="${doc.image}" 
+              alt="${doc.name}" 
+              class="w-full h-full object-cover" 
+              onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80';"
+            />
+            <span class="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900" title="Active"></span>
+          </div>
+
+          <div>
+            <h2 class="text-sm font-extrabold text-white flex items-center justify-center gap-1">
+              <span>${currentLang === 'bn' ? doc.nameBn : doc.name}</span>
+              <span class="text-cyan-400 text-xs">✓</span>
+            </h2>
+            <div class="text-cyan-300 font-bold text-xs mt-0.5">${currentLang === 'bn' ? doc.specialtyBn : doc.specialty}</div>
+            <div class="text-[10px] text-slate-300 font-medium">${doc.designation || 'Consultant Specialist'}</div>
+            <div class="text-[10px] text-cyan-400 font-mono mt-1 font-semibold">${doc.bmdc}</div>
+          </div>
+
+          <div class="text-[10px] text-slate-300 font-mono p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+            ${doc.degrees}
+          </div>
+
+          <!-- Quick Stats Pill -->
+          <div class="grid grid-cols-3 gap-2 pt-1 text-center">
+            <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-[9px] text-slate-400 block">Experience</span>
+              <strong class="text-xs text-white font-bold">${doc.experienceYears} Years</strong>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-[9px] text-slate-400 block">Rating</span>
+              <strong class="text-xs text-amber-400 font-bold">★ ${doc.rating}</strong>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-900/60 border border-slate-800">
+              <span class="text-[9px] text-slate-400 block">New Visit Fee</span>
+              <strong class="text-xs text-cyan-300 font-bold">৳${doc.consultationFee}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bio & Clinical Summary -->
+        <div class="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-1">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clinical Bio & Practice</span>
+          <p class="text-[11px] text-slate-300 leading-relaxed">${doc.bio}</p>
+        </div>
+
+        <!-- Chamber Location Card -->
+        <div class="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+          <div class="flex items-center gap-2 text-cyan-400 font-bold text-xs">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            <span>Chamber & Daily Serial Desk</span>
+          </div>
+          <div class="text-xs font-bold text-white">${doc.facility}</div>
+          <div class="text-[11px] text-slate-300">${doc.chamber}</div>
+          <div class="pt-1 flex justify-between items-center text-[10px]">
+            <span class="text-emerald-400 font-bold">● Digital Serial Passes Issued Daily</span>
+            <span class="text-slate-400">Follow-up: ৳${doc.followupFee || 800}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function changeActiveDate(dateStr, btn) {
+      currentDate = dateStr;
+      renderSlots();
+    }
+
+    function renderSlots() {
+      const container = document.getElementById('slot-container');
+      container.innerHTML = '';
+      const docSlots = slotDatabase[activeDoctorId] || slotDatabase['doc-1'];
+      const slots = docSlots[currentDate] || [];
+
+      let html = `<div class="grid grid-cols-2 gap-2">`;
+      slots.forEach(slot => {
+        const isSelected = slot.time === selectedSlotTime;
+        const isBooked = slot.status === 'booked';
+        let cardClass = "slot-card p-2.5 rounded-xl border text-left cursor-pointer ";
+        let badge = '';
+
+        if (isBooked) {
+          cardClass += "border-slate-800 bg-slate-800/30 text-slate-500 cursor-not-allowed opacity-60";
+          badge = '<div class="text-[10px] text-rose-400/80 mt-0.5">Booked</div>';
+        } else if (isSelected) {
+          cardClass += "border-2 border-cyan-400 bg-cyan-500/20 text-white shadow-sm";
+          badge = '<div class="text-[10px] text-cyan-300 mt-0.5">✓ Selected</div>';
+        } else {
+          cardClass += "border-slate-700 bg-slate-800/70 hover:border-cyan-500 text-slate-200";
+          badge = '<div class="text-[10px] text-emerald-400 mt-0.5">● Available</div>';
+        }
+
+        const clickAttr = isBooked ? '' : `onclick="onSelectSlot('${slot.time}')"`;
+        html += `<div ${clickAttr} class="${cardClass}"><div class="font-bold text-xs ${isBooked ? 'line-through text-slate-500' : 'text-white'}">${slot.time.split(' - ')[0]}</div>${badge}</div>`;
+      });
+      html += `</div>`;
+      container.innerHTML = html;
+      document.getElementById('m-selected-summary').innerText = `${selectedSlotTime.split(' - ')[0]}, ${currentDate}`;
+    }
+
+    function onSelectSlot(t) {
+      selectedSlotTime = t;
+      renderSlots();
+    }
+
+    function bookSelectedSlot() {
+      const nextSerial = myAppointments.length + 4;
+      const newApt = {
+        id: 'apt-' + Date.now(),
+        serialNumber: nextSerial,
+        patientName: 'Rahim Ahmed',
+        doctorId: activeDoctorId,
+        doctor: 'Dr. Karim Chowdhury',
+        specialty: 'Cardiology',
+        facility: 'Popular Diagnostic Centre, Dhanmondi',
+        chamberRoom: 'Room #402, Level 4',
+        date: currentDate,
+        time: selectedSlotTime,
+        fee: 1200,
+        status: 'confirmed'
+      };
+      myAppointments.unshift(newApt);
+
+      webQueue.push({
+        id: webQueue.length + 1,
+        serial: nextSerial,
+        time: selectedSlotTime,
+        name: 'Rahim Ahmed (You)',
+        status: 'waiting'
+      });
+
+      triggerPushBanner(`Serial #0${nextSerial} Assigned! 🎟️`, `Booking confirmed for ${selectedSlotTime.split(' - ')[0]}.`);
+      showToast('Booking Confirmed', `Serial #0${nextSerial} generated with digital QR slip.`);
+      navTo('my');
+      renderWebQueue();
+    }
+
+    function cancelAppointment(id) {
+      myAppointments = myAppointments.filter(a => a.id !== id);
+      triggerPushBanner('Appointment Cancelled', 'Slot & serial token released.');
+      renderMyAppointments();
+    }
+
+    // Web Queue View
+    function renderWebQueue() {
+      const tbody = document.getElementById('web-queue-body');
+      tbody.innerHTML = webQueue.map(p => {
+        let statusBadge = '';
+        let actionBtn = '';
+
+        if (p.status === 'completed') {
+          statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-700 text-slate-300">Completed</span>';
+          actionBtn = '<span class="text-slate-500 text-[11px]">Done</span>';
+        } else if (p.status === 'in_queue') {
+          statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 animate-pulse">● In Chamber</span>';
+          actionBtn = `<button onclick="advanceDoctorQueue()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition">✓ Done</button>`;
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300">Waiting</span>';
+          actionBtn = `<button onclick="advanceDoctorQueue()" class="px-2.5 py-1 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white font-medium text-[11px] transition">Call In</button>`;
+        }
+
+        // Problem display depends on currentWebRole (Doctor vs Admin)
+        let problemDisplay = '';
+        if (currentWebRole === 'doctor') {
+          problemDisplay = `
+            <div class="max-w-xs">
+              <span class="px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-300 font-bold text-[10px] border border-cyan-800/40">${p.visitType}</span>
+              <p class="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">${p.problem}</p>
+              <button onclick='openPatientClinicalModal(${JSON.stringify(p)})' class="text-cyan-400 text-[10px] font-bold hover:underline mt-1 flex items-center gap-1">
+                <span>📋 Full Clinical Card & Vitals</span>
+              </button>
+            </div>
+          `;
+        } else {
+          problemDisplay = `
+            <div class="max-w-xs p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+              <span class="text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                🔒 Clinical Problem Masked
+              </span>
+              <p class="text-[10px] text-slate-500 mt-0.5">Confidential medical data protected under Cyber Security Act & PDPA.</p>
+            </div>
+          `;
+        }
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3.5 font-black text-cyan-400">#0${p.serial}</td>
+            <td class="p-3.5 font-bold text-white">${p.time}</td>
+            <td class="p-3.5">
+              <div class="font-bold text-white">${p.name}</div>
+              <div class="text-[10px] text-slate-400">${p.age ? p.age + 'y, ' + p.gender + ' · ' + p.bloodGroup : 'Patient'}</div>
+              <div class="text-[10px] text-slate-500">${p.phone || ''}</div>
+            </td>
+            <td class="p-3.5">${problemDisplay}</td>
+            <td class="p-3.5">${statusBadge}</td>
+            <td class="p-3.5 text-right space-y-1">
+              ${actionBtn}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function triggerPushBanner(title, body) {
+      const banner = document.getElementById('push-banner-container');
+      document.getElementById('push-banner-title').innerText = title;
+      document.getElementById('push-banner-body').innerText = body;
+      banner.classList.remove('hidden');
+      setTimeout(() => banner.classList.add('hidden'), 4200);
+    }
+
+    function simulatePushTrigger(type) {
+      if (type === 'reminder-1h') {
+        triggerPushBanner('Visit in 1 Hour ⏰', 'Dr. Karim Chowdhury at Popular Diagnostic Chamber #402.');
+      }
+    }
+
+    function showToast(title, message) {
+      const box = document.getElementById('toast-box');
+      document.getElementById('toast-title').innerText = title;
+      document.getElementById('toast-msg').innerText = message;
+      box.classList.remove('opacity-0', 'translate-y-[-20px]', 'pointer-events-none');
+      box.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        box.classList.add('opacity-0', 'translate-y-[-20px]', 'pointer-events-none');
+        box.classList.remove('opacity-100', 'translate-y-0');
+      }, 3500);
+    }
+
+    
+    function setWebRole(role) {
+      currentWebRole = role;
+      const btnDoc = document.getElementById('role-btn-doctor');
+      const btnAdm = document.getElementById('role-btn-admin');
+
+      if (role === 'doctor') {
+        btnDoc.className = "px-3 py-1 rounded-lg font-bold bg-cyan-500 text-white shadow transition";
+        btnAdm.className = "px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition";
+        showToast('Switched to Doctor View', 'Full clinical patient complaints and vitals enabled.');
+      } else {
+        btnAdm.className = "px-3 py-1 rounded-lg font-bold bg-indigo-600 text-white shadow transition";
+        btnDoc.className = "px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition";
+        showToast('Switched to Admin View', 'Medical problem masked to protect patient confidentiality.');
+      }
+      renderWebQueue();
+    }
+
+    function openPatientClinicalModal(p) {
+      document.getElementById('cp-name').innerText = p.name;
+      document.getElementById('cp-initials').innerText = p.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+      document.getElementById('cp-serial').innerText = `SERIAL #0${p.serial}`;
+      document.getElementById('cp-demographics').innerText = `${p.age || 35} Yrs, ${p.gender || 'Male'} · Blood Group ${p.bloodGroup || 'O+'} · ${p.phone || ''}`;
+      document.getElementById('cp-visittype').innerText = p.visitType || 'Consultation';
+      document.getElementById('cp-problem').innerText = p.problem || 'No chief complaint recorded.';
+      document.getElementById('cp-vitals').innerText = p.vitals || 'Vitals to be taken in chamber.';
+      document.getElementById('cp-history').innerText = p.history || 'No prior visit history with this clinician.';
+      document.getElementById('modal-patient-clinical').classList.remove('hidden');
+    }
+
+    function closePatientClinicalModal() {
+      document.getElementById('modal-patient-clinical').classList.add('hidden');
+    }
+
+    // Initialize App
+    renderMyAppointments();
+    renderDoctorList();
+    renderWebQueue();
+  </script>
+</body>
+</html>

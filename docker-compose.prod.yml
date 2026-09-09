@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: clinisync_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-appointment_db}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-appointment_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clinisync_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: clinisync_redis_prod
+    restart: always
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-}"
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clinisync_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    image: clinisync-backend:latest
+    container_name: clinisync_backend_prod
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - PROJECT_NAME=CliniSync API
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_secure_password}@postgres:5432/${POSTGRES_DB:-appointment_db}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-changethisinproduction_min_32_characters_long_secret}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - RUN_MIGRATIONS=true
+    volumes:
+      - uploads_prod_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - clinisync_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api/v1}
+    image: clinisync-frontend:latest
+    container_name: clinisync_frontend_prod
+    restart: always
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - clinisync_network
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  uploads_prod_data:
+
+networks:
+  clinisync_network:
+    driver: bridge

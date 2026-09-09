@@ -1,0 +1,342 @@
+import React, { useState } from 'react';
+import { X, Lock, Mail, User, Phone, Shield, Stethoscope, HeartPulse, Check, Sparkles } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
+import { useLanguage } from '../../../context/LanguageContext';
+
+interface AuthModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export type UserRole = 'patient' | 'doctor' | 'admin';
+
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+  const { login, register } = useAuth();
+  const { t, language } = useLanguage();
+  const [isRegister, setIsRegister] = useState(false);
+  
+  // Registration fields
+  const [selectedRole, setSelectedRole] = useState<UserRole>('patient');
+  const [name, setName] = useState('Rahim Ahmed');
+  const [email, setEmail] = useState('rahim@example.com');
+  const [password, setPassword] = useState('PatientPass123!');
+  const [phone, setPhone] = useState('+880 1711-987654');
+  const [specialization, setSpecialization] = useState('General Medicine');
+  const [bmdcNumber, setBmdcNumber] = useState('BMDC-A98421');
+
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleRoleChange = (role: UserRole) => {
+    setSelectedRole(role);
+    if (role === 'doctor') {
+      setName('Dr. Tariqul Islam');
+      setEmail(`dr.tariqul_${Math.floor(Math.random() * 900 + 100)}@example.com`);
+      setPassword('DoctorPass123!');
+      setPhone('+880 1819-234567');
+    } else if (role === 'admin') {
+      setName('Clinic Administrator');
+      setEmail(`admin_${Math.floor(Math.random() * 900 + 100)}@clinisync.com`);
+      setPassword('AdminSecret123!');
+      setPhone('+880 1912-345678');
+    } else {
+      setName('Rahim Ahmed');
+      setEmail(`patient_${Math.floor(Math.random() * 900 + 100)}@example.com`);
+      setPassword('PatientPass123!');
+      setPhone('+880 1711-987654');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      if (isRegister) {
+        await register({
+          name,
+          email,
+          password,
+          phone,
+          role: selectedRole,
+          specialization: selectedRole === 'doctor' ? specialization : undefined,
+          bmdcNumber: selectedRole === 'doctor' ? bmdcNumber : undefined,
+        });
+      } else {
+        await login(email, password);
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-100 relative max-h-[92vh] overflow-y-auto">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Modal Header */}
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+            {isRegister ? <Sparkles className="w-6 h-6" /> : <Lock className="w-6 h-6" />}
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">
+              {isRegister ? t('auth.register_title', 'Create Account') : t('auth.login_title', 'Welcome Back')}
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {isRegister
+                ? t('auth.register_subtitle', 'Join ShebaSync for fast appointment bookings')
+                : t('auth.login_subtitle', 'Log in with your clinic credentials')}
+            </p>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl font-semibold flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Registration Role Selection Segment */}
+          {isRegister && (
+            <div className="space-y-2">
+              <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                {t('auth.role_select', 'Select Account Type / Role')} <span className="text-rose-500">*</span>
+              </label>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                {/* Patient Role */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('patient')}
+                  className={`p-3 rounded-2xl border text-left transition relative cursor-pointer ${
+                    selectedRole === 'patient'
+                      ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600/30'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="w-7 h-7 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center">
+                      <HeartPulse className="w-4 h-4" />
+                    </div>
+                    {selectedRole === 'patient' && (
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-extrabold text-xs text-slate-900">{t('auth.role_patient', 'Patient')}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t('auth.role_patient_desc', 'Book visits')}</div>
+                </button>
+
+                {/* Doctor Role */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('doctor')}
+                  className={`p-3 rounded-2xl border text-left transition relative cursor-pointer ${
+                    selectedRole === 'doctor'
+                      ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600/30'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center">
+                      <Stethoscope className="w-4 h-4" />
+                    </div>
+                    {selectedRole === 'doctor' && (
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-extrabold text-xs text-slate-900">{t('auth.role_doctor', 'Doctor')}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t('auth.role_doctor_desc', 'Manage queue')}</div>
+                </button>
+
+                {/* Admin Role */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('admin')}
+                  className={`p-3 rounded-2xl border text-left transition relative cursor-pointer ${
+                    selectedRole === 'admin'
+                      ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600/30'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="w-7 h-7 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    {selectedRole === 'admin' && (
+                      <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-extrabold text-xs text-slate-900">{t('auth.role_admin', 'Admin')}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{t('auth.role_admin_desc', 'Full clinic')}</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Registration Extra Fields: Name & Phone */}
+          {isRegister && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  {t('auth.fullname', 'Full Name')} <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
+                    placeholder="e.g. Rahim Ahmed"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  {t('auth.phone', 'Phone Number')}
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
+                    placeholder="+880 1711-XXXXXX"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Doctor-Specific Fields */}
+          {isRegister && selectedRole === 'doctor' && (
+            <div className="p-3.5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold text-blue-950 mb-1">
+                  {t('auth.specialization', 'Medical Specialty')} <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-blue-200 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="General Medicine">General Medicine (মেডিসিন)</option>
+                  <option value="Cardiology">Cardiology (হৃদরোগ)</option>
+                  <option value="Neurology">Neurology (নিউরোলজি)</option>
+                  <option value="Pediatrics">Pediatrics (শিশু রোগ)</option>
+                  <option value="Orthopedics">Orthopedics (হাড় ও জোড়া)</option>
+                  <option value="Gynecology">Gynecology (স্ত্রী ও প্রসূতি)</option>
+                  <option value="Dermatology">Dermatology (চর্ম ও এলার্জি)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-blue-950 mb-1">
+                  {t('auth.bmdc_number', 'BMDC Reg No.')}
+                </label>
+                <input
+                  type="text"
+                  value={bmdcNumber}
+                  onChange={(e) => setBmdcNumber(e.target.value)}
+                  placeholder="e.g. BMDC-A98421"
+                  className="w-full p-2.5 rounded-xl border border-blue-200 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Common Email Field */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              {t('auth.email', 'Email Address')} <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
+                placeholder="name@example.com"
+              />
+            </div>
+          </div>
+
+          {/* Common Password Field */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              {t('auth.password', 'Password')} <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-blue-700 to-teal-600 hover:from-blue-800 hover:to-teal-700 text-white rounded-2xl font-black text-xs tracking-wide shadow-lg shadow-blue-700/20 mt-2 transition cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center space-x-2">
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span>{t('auth.processing', 'Processing...')}</span>
+              </span>
+            ) : isRegister ? (
+              t('auth.register_btn', 'Create Account')
+            ) : (
+              t('auth.login_btn', 'Login')
+            )}
+          </button>
+        </form>
+
+        {/* Toggle Login / Register */}
+        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+          <button
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setError(null);
+            }}
+            className="text-xs text-blue-700 hover:text-blue-800 font-bold hover:underline transition cursor-pointer"
+          >
+            {isRegister ? t('auth.already_account', 'Already have an account? Log In') : t('auth.need_account', "Don't have an account? Register")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

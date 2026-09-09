@@ -1,0 +1,165 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci-cd.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci-cd.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy to AWS if tests pass'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  id-token: write   # Required for AWS OIDC authentication
+  contents: read
+
+jobs:
+  test:
+    name: Backend Tests & Lint
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: appointment_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'backend/requirements.txt'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install flake8 pytest-cov
+
+      - name: Code Quality & Linting
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run Pytest Test Suite
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: postgresql+asyncpg://postgres:testpassword@localhost:5432/appointment_test_db
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test_secret_key_minimum_32_chars_long_123456
+        run: |
+          pytest backend/tests -v
+
+  build-and-deploy:
+    name: Build Docker & Deploy to AWS
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.deploy == 'true')
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS Credentials (OIDC or Secret Keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # If using OIDC (Recommended):
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          # Fallback if using standard IAM Access Keys:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        if: env.AWS_ACCESS_KEY_ID != '' || env.AWS_ROLE_TO_ASSUME != ''
+        uses: aws-actions/amazon-ecr-login@v2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+      - name: Build and Push Docker Image to ECR
+        if: steps.login-ecr.conclusion == 'success'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY || 'clinisync-backend' }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY || 'clinisync-backend' }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Deployment Target: AWS App Runner (If configured)
+      - name: Trigger AWS App Runner Deployment
+        if: secrets.APP_RUNNER_SERVICE_ARN != ''
+        run: |
+          aws apprunner start-deployment \
+            --service-arn "${{ secrets.APP_RUNNER_SERVICE_ARN }}" \
+            --region "${{ secrets.AWS_REGION || 'us-east-1' }}"
+
+      # Deployment Target: AWS ECS (If configured)
+      - name: Deploy to Amazon ECS
+        if: secrets.ECS_CLUSTER_NAME != '' && secrets.ECS_SERVICE_NAME != ''
+        run: |
+          aws ecs update-service \
+            --cluster "${{ secrets.ECS_CLUSTER_NAME }}" \
+            --service "${{ secrets.ECS_SERVICE_NAME }}" \
+            --force-new-deployment \
+            --region "${{ secrets.AWS_REGION || 'us-east-1' }}"
+
+      # Deployment Target: Single EC2 via SSM (If configured)
+      - name: Deploy to EC2 via AWS SSM
+        if: secrets.EC2_INSTANCE_ID != ''
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "cd /home/ubuntu/app",
+              "aws ecr get-login-password --region '"${{ secrets.AWS_REGION || 'us-east-1' }}"' | docker login --username AWS --password-stdin '"${{ steps.login-ecr.outputs.registry }}"'",
+              "docker compose -f docker-compose.prod.yml pull backend",
+              "docker compose -f docker-compose.prod.yml up -d backend"
+            ]' \
+            --region "${{ secrets.AWS_REGION || 'us-east-1' }}"
