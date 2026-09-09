@@ -43,35 +43,48 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '/api/v1' }}
         run: npm run build
 
+      - name: Sanitize AWS Configuration
+        if: github.ref == 'refs/heads/main'
+        run: |
+          RAW_REGION="${{ secrets.AWS_REGION }}"
+          CLEAN_REGION="$(echo "$RAW_REGION" | tr -d '[:space:]"'"')"
+          if [ -z "$CLEAN_REGION" ]; then CLEAN_REGION="us-east-1"; fi
+          echo "AWS_REGION=$CLEAN_REGION" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=$CLEAN_REGION" >> $GITHUB_ENV
+
+          RAW_BUCKET="${{ secrets.FRONTEND_S3_BUCKET }}"
+          CLEAN_BUCKET="$(echo "$RAW_BUCKET" | tr -d '[:space:]"'"' | sed 's|^s3://||')"
+          echo "FRONTEND_S3_BUCKET=$CLEAN_BUCKET" >> $GITHUB_ENV
+
+          RAW_ROLE="${{ secrets.AWS_ROLE_TO_ASSUME }}"
+          CLEAN_ROLE="$(echo "$RAW_ROLE" | tr -d '[:space:]"'"')"
+          echo "AWS_ROLE_TO_ASSUME=$CLEAN_ROLE" >> $GITHUB_ENV
+
+          RAW_CF="${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
+          CLEAN_CF="$(echo "$RAW_CF" | tr -d '[:space:]"'"')"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=$CLEAN_CF" >> $GITHUB_ENV
+
       - name: Configure AWS Credentials (OIDC)
         if: github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy Built Assets to Amazon S3
         if: github.ref == 'refs/heads/main'
-        env:
-          FRONTEND_S3_BUCKET: ${{ secrets.FRONTEND_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
         run: |
-          BUCKET="$(echo "${FRONTEND_S3_BUCKET}" | tr -d ' "' | sed 's|^s3://||')"
-          echo "Deploying frontend to s3://${BUCKET} (Region: ${AWS_REGION})..."
-          aws s3 sync frontend/dist s3://${BUCKET} \
+          echo "Deploying frontend to s3://${FRONTEND_S3_BUCKET} (Region: ${AWS_REGION})..."
+          aws s3 sync frontend/dist s3://${FRONTEND_S3_BUCKET} \
             --region "${AWS_REGION}" \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "index.html"
-          aws s3 cp frontend/dist/index.html s3://${BUCKET}/index.html \
+          aws s3 cp frontend/dist/index.html s3://${FRONTEND_S3_BUCKET}/index.html \
             --region "${AWS_REGION}" \
             --cache-control "no-cache, no-store, must-revalidate"
 
       - name: Invalidate CloudFront CDN Cache
         if: github.ref == 'refs/heads/main'
-        env:
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" --paths "/*"
