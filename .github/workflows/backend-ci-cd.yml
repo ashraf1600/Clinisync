@@ -78,7 +78,7 @@ jobs:
           # Stop the build if there are Python syntax errors or undefined names
           flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Run Database Migrations & Pytest Test Suite
+      - name: Run Pytest Test Suite
         env:
           ENVIRONMENT: test
           DATABASE_URL: postgresql+asyncpg://postgres:testpassword@localhost:5432/appointment_test_db
@@ -87,7 +87,6 @@ jobs:
           PYTHONPATH: .
         working-directory: ./backend
         run: |
-          alembic upgrade head
           pytest tests -v
 
   build-and-deploy:
