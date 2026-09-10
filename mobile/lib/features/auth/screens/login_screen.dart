@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _error = e.toString().replace('Exception: ', '').replace('DioException', 'Network error'));
+      setState(() => _error = e.toString().replaceAll('Exception: ', '').replaceAll('DioException', 'Network error'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
