@@ -54,11 +54,12 @@ void main() {
     await tester.pumpWidget(const CliniSyncApp());
     await tester.pumpAndSettle();
 
-    // Bottom nav labels render on the first frame (default language is Bangla)
-    expect(find.text('হোম'), findsOneWidget);
-    expect(find.text('ডাক্তার'), findsOneWidget);
-    expect(find.text('টোকেন'), findsOneWidget);
-    expect(find.text('লাইভ কিউ'), findsOneWidget);
-    expect(find.text('অ্যালার্ট'), findsOneWidget);
+    // Bottom nav labels render on the first frame (default language is Bangla).
+    // findsWidgets: labels like "ডাক্তার" also appear in home-screen content.
+    expect(find.text('হোম'), findsWidgets);
+    expect(find.text('ডাক্তার'), findsWidgets);
+    expect(find.text('টোকেন'), findsWidgets);
+    expect(find.text('লাইভ কিউ'), findsWidgets);
+    expect(find.text('অ্যালার্ট'), findsWidgets);
   });
 }
