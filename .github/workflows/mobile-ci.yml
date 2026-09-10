@@ -71,3 +71,37 @@ jobs:
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: ignore
           retention-days: 14
+
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Initialize Windows Platform Files
+        working-directory: ./mobile
+        run: |
+          if (-not (Test-Path "windows")) { flutter create --platforms=windows --org com.clinisync . }
+        shell: pwsh
+      - name: Install Flutter Dependencies
+        working-directory: ./mobile
+        run: flutter pub get
+      - name: Build Windows Release EXE
+        working-directory: ./mobile
+        run: flutter build windows --release
+      - name: Zip Windows Build
+        run: Compress-Archive -Path mobile/build/windows/x64/runner/Release/* -DestinationPath clinisync-windows-exe.zip
+        shell: pwsh
+      - name: Upload Windows EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clinisync-windows-exe
+          path: clinisync-windows-exe.zip
+          if-no-files-found: warn
+          retention-days: 14

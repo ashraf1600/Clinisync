@@ -10,9 +10,13 @@ class ApiClient {
   ApiClient._internal() {
     dio = Dio(
       BaseOptions(
-        baseUrl: 'http://10.0.2.2:8000/api/v1', // Android Emulator to host; for web/iOS adjust
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        // --dart-define=API_BASE_URL=https://your-api/api/v1 overrides this at build time
+        baseUrl: const String.fromEnvironment(
+          'API_BASE_URL',
+          defaultValue: 'https://clinisync-api.onrender.com/api/v1',
+        ),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

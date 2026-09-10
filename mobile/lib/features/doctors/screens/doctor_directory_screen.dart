@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../models/doctor_model.dart';
 import '../services/doctor_repository.dart';
+import '../../auth/screens/login_screen.dart';
 import 'booking_modal_screen.dart';
 
 class DoctorDirectoryScreen extends StatefulWidget {
@@ -48,6 +49,13 @@ class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('CliniSync Specialists', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.login),
+            tooltip: 'Log in / Register',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+          ),
+        ],
       ),
       body: Column(
         children: [
