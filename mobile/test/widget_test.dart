@@ -17,7 +17,7 @@ class FakeAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    final Map<String, dynamic> data;
+    final Object data;
     if (options.path.contains('/doctors')) {
       data = {
         'items': [],
