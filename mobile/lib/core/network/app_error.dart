@@ -18,6 +18,7 @@ class AppError {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
+        case DioExceptionType.transformTimeout:
           return Lang.t(
             'সার্ভার সাড়া দিচ্ছে না। ইন্টারনেট চেক করে আবার চেষ্টা করুন।',
             'Server is taking too long. Check your internet and retry.',

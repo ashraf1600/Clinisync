@@ -6,7 +6,7 @@ import '../../../../core/i18n/lang.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/app_error.dart';
 import '../models/doctor_model.dart';
-import '../models/appointment_model.dart';
+import '../../appointments/models/appointment_model.dart';
 import '../../availability/models/time_slot_model.dart';
 import '../../availability/services/availability_repository.dart';
 import '../../appointments/services/appointment_repository.dart';
