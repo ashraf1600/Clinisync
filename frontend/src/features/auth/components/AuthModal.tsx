@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, Phone, Shield, Stethoscope, HeartPulse, Check, Sparkles } from 'lucide-react';
+import { X, Lock, Mail, User, Phone, Shield, Stethoscope, HeartPulse, Check, Sparkles, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 
@@ -20,12 +20,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [name, setName] = useState('Rahim Ahmed');
   const [email, setEmail] = useState('rahim@example.com');
   const [password, setPassword] = useState('PatientPass123!');
+  const [confirmPassword, setConfirmPassword] = useState('PatientPass123!');
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('+880 1711-987654');
   const [specialization, setSpecialization] = useState('General Medicine');
   const [bmdcNumber, setBmdcNumber] = useState('BMDC-A98421');
+  const [adminInviteCode, setAdminInviteCode] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const isValidBdPhone = (v: string) => !v || /^\+880\s?1[3-9]\d{2}-?\d{6}$/.test(v.trim());
+  const passwordScore = () => {
+    let s = 0;
+    if (password.length >= 8) s++;
+    if (/[A-Z]/.test(password)) s++;
+    if (/[a-z]/.test(password)) s++;
+    if (/[0-9]/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password)) s++;
+    return s;
+  };
 
   if (!isOpen) return null;
 
@@ -52,24 +66,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (isRegister) {
+      if (!name.trim() || name.trim().length < 2) { setError(language === 'bn' ? 'নাম অন্তত ২ অক্ষরের হতে হবে' : 'Name must be at least 2 characters'); return; }
+      if (!isValidBdPhone(phone)) { setError(language === 'bn' ? 'ফোন ফরম্যাট: +880 1711-XXXXXX' : 'Phone format: +880 1711-XXXXXX'); return; }
+      if (password !== confirmPassword) { setError(language === 'bn' ? 'পাসওয়ার্ড মিলছে না' : 'Passwords do not match'); return; }
+      if (passwordScore() < 3) { setError(language === 'bn' ? 'পাসওয়ার্ড দুর্বল — বড়/ছোট অক্ষর ও সংখ্যা দিন (৮+)' : 'Password too weak — needs upper, lower and number (8+)'); return; }
+    }
     setLoading(true);
     try {
       if (isRegister) {
         await register({
-          name,
-          email,
+          name: name.trim(),
+          email: email.trim(),
           password,
-          phone,
+          phone: phone.trim() || undefined,
           role: selectedRole,
           specialization: selectedRole === 'doctor' ? specialization : undefined,
           bmdcNumber: selectedRole === 'doctor' ? bmdcNumber : undefined,
-        });
+          adminInviteCode: selectedRole === 'admin' ? adminInviteCode || undefined : undefined,
+        } as any);
       } else {
-        await login(email, password);
+        await login(email.trim(), password);
       }
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || err.message || 'Authentication failed');
+      const raw = err.response?.data;
+      const msg = raw?.error?.message || raw?.detail || err.message || 'Authentication failed';
+      // 429/403 rate limit friendly
+      if (err.response?.status === 403 && raw?.error?.code === 'FORBIDDEN') {
+        setError(msg);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -225,10 +253,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
+                    className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 transition ${phone && !isValidBdPhone(phone) ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-blue-600 focus:ring-blue-600/30'}`}
                     placeholder="+880 1711-XXXXXX"
                   />
                 </div>
+                {phone && !isValidBdPhone(phone) && (
+                  <p className="text-[10px] text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{language === 'bn' ? 'ফোন ফরম্যাট: +880 1711-XXXXXX' : 'Format: +880 1711-XXXXXX'}</p>
+                )}
               </div>
             </div>
           )}
@@ -295,15 +326,67 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
+                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition"
                 placeholder="••••••••"
               />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-2 p-1.5 text-slate-400 hover:text-slate-600">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {isRegister && password && (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden flex">
+                  {[1,2,3,4].map(i => (
+                    <span key={i} className={`flex-1 ${passwordScore() >= i ? (passwordScore() >= 4 ? 'bg-emerald-500' : passwordScore() >= 3 ? 'bg-amber-500' : 'bg-red-500') : 'bg-transparent'}`} />
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">{passwordScore() >= 4 ? (language === 'bn' ? 'শক্তিশালী' : 'Strong') : passwordScore() >= 3 ? (language === 'bn' ? 'মাঝারি' : 'Medium') : (language === 'bn' ? 'দুর্বল' : 'Weak')}</span>
+              </div>
+            )}
+            {isRegister && (
+              <p className="text-[10px] text-slate-400 mt-1">{language === 'bn' ? '৮+ অক্ষর, বড়/ছোট অক্ষর ও সংখ্যা আবশ্যক' : '8+ chars, needs upper, lower and number'}</p>
+            )}
           </div>
+          {isRegister && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                {language === 'bn' ? 'পাসওয়ার্ড নিশ্চিত করুন' : 'Confirm Password'} <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 transition ${confirmPassword && confirmPassword !== password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-blue-600 focus:ring-blue-600/30'}`}
+                  placeholder="••••••••"
+                />
+              </div>
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[10px] text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{language === 'bn' ? 'পাসওয়ার্ড মিলছে না' : 'Passwords do not match'}</p>
+              )}
+            </div>
+          )}
+          {isRegister && selectedRole === 'admin' && (
+            <div>
+              <label className="block text-[11px] font-bold text-purple-900 mb-1">
+                {language === 'bn' ? 'অ্যাডমিন ইনভাইট কোড' : 'Admin Invite Code'} <span className="text-slate-400 text-[10px]">({language === 'bn' ? 'প্রয়োজন হলে' : 'if required'})</span>
+              </label>
+              <input
+                type="text"
+                value={adminInviteCode}
+                onChange={(e) => setAdminInviteCode(e.target.value)}
+                placeholder={language === 'bn' ? 'ক্লিনিক থেকে দেওয়া কোড লিখুন' : 'Enter clinic invite code'}
+                className="w-full p-2.5 rounded-xl border border-purple-200 text-xs font-semibold text-slate-800 bg-purple-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">{language === 'bn' ? 'অ্যাডমিন অ্যাকাউন্ট শুধু ক্লিনিকের অনুমতিতে খোলা যায়।' : 'Admin accounts require a clinic invite code.'}</p>
+            </div>
+          )}
 
           {/* Submit Button */}
           <button

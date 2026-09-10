@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     # Cron (reminder scheduler shared secret — set a strong value in production)
     CRON_SECRET_KEY: str = "change-me-in-production"
 
+    # Auth - Admin invite code (set in prod env; empty = allow open admin creation for local dev)
+    ADMIN_INVITE_CODE: str = ""
+
+    # Rate limit - login attempts per window (simple in-memory)
+    LOGIN_RATE_LIMIT_MAX: int = 5
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 900
+
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

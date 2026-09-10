@@ -24,7 +24,17 @@ class UserService:
             raise ConflictException(f"User with email '{data.email}' already exists")
         
         allowed_roles = {"patient", "doctor", "admin"}
-        role = data.role.lower() if data.role and data.role.lower() in allowed_roles else "patient"
+        raw_role = data.role.lower() if data.role and data.role.lower() in allowed_roles else "patient"
+        # Admin creation is gated by invite code if configured
+        from app.core.config import settings as _settings
+        if raw_role == "admin" and _settings.ADMIN_INVITE_CODE:
+            if (data.admin_invite_code or "").strip() != _settings.ADMIN_INVITE_CODE:
+                raise UnauthorizedException("Invalid admin invite code")
+        role = raw_role
+        import re as _re
+        if not _re.search(r"[A-Z]", data.password) or not _re.search(r"[a-z]", data.password) or not _re.search(r"[0-9]", data.password):
+            from app.core.exceptions import BadRequestException
+            raise BadRequestException("Password needs upper, lower and a number (8+ chars)")
 
         user = User(
             name=data.name,

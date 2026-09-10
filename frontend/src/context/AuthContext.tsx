@@ -23,6 +23,7 @@ interface AuthContextType {
     role?: 'patient' | 'doctor' | 'admin';
     specialization?: string;
     bmdcNumber?: string;
+    adminInviteCode?: string;
   }) => Promise<void>;
   logout: () => void;
   updateUserData: (data: Partial<User>) => void;
@@ -55,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role?: 'patient' | 'doctor' | 'admin';
     specialization?: string;
     bmdcNumber?: string;
+    adminInviteCode?: string;
   }) => {
     const res = await apiClient.post('/auth/register', data);
     const { user: userData, tokens } = res.data;
@@ -91,6 +93,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(null);
       },
     });
+  }, []);
+
+  // Validate stored token on app load; if expired/invalid, clear bad session
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    apiClient
+      .get('/users/me')
+      .then((res) => {
+        if (cancelled) return;
+        const u = res.data;
+        setUser(u);
+        localStorage.setItem('user_data', JSON.stringify(u));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // api interceptor will try refresh first; if still 401 we end up here
+        const still = localStorage.getItem('access_token');
+        if (!still) {
+          setUser(null);
+          setToken(null);
+        }
+      });
+    return () => { cancelled = true; };
   }, []);
 
   return (

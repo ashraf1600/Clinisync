@@ -12,6 +12,7 @@ class UserRegister(CamelModel):
     timezone: str = "Asia/Dhaka"
     specialization: str | None = None
     bmdc_number: str | None = None
+    admin_invite_code: str | None = Field(default=None, alias="adminInviteCode")
 
 class UserLogin(CamelModel):
     email: EmailStr
