@@ -50,8 +50,10 @@ export const appointmentService = {
     const res = await apiClient.get(`/appointments/${id}/verify`);
     return res.data;
   },
-  getDoctorQueue: async (doctorId: string, date: string): Promise<DoctorQueueResponse> => {
-    const res = await apiClient.get(`/appointments/doctor/${doctorId}`, { params: { date } });
+  getDoctorQueue: async (doctorId: string, date: string, locationId?: string): Promise<DoctorQueueResponse> => {
+    const params: any = { date };
+    if (locationId) params.locationId = locationId;
+    const res = await apiClient.get(`/appointments/doctor/${doctorId}`, { params });
     return res.data;
   },
   pauseQueue: async (doctorId: string, pauseMinutes: number = 5, reason: string = 'Short break') => {
@@ -62,8 +64,16 @@ export const appointmentService = {
     const res = await apiClient.put(`/appointments/doctor/${doctorId}/queue-resume`);
     return res.data;
   },
-  updateStatus: async (id: string, status: string) => {
-    const res = await apiClient.put(`/appointments/${id}/status`, { status });
+  updateStatus: async (id: string, status: string, doctorNotes?: string) => {
+    const res = await apiClient.put(`/appointments/${id}/status`, { status, doctorNotes });
+    return res.data;
+  },
+  updatePayment: async (id: string, paymentStatus: string) => {
+    const res = await apiClient.put(`/appointments/${id}/payment`, { paymentStatus });
+    return res.data;
+  },
+  createWalkIn: async (payload: { doctorId: string; locationId?: string; patientName: string; patientPhone?: string; startTime: string; endTime: string; visitType?: string; chiefComplaint?: string }) => {
+    const res = await apiClient.post('/appointments/walk-in', payload);
     return res.data;
   },
 };

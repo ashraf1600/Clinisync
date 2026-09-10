@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Coffee, Play, Check, XCircle, Users, Activity, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Coffee, Play, Check, XCircle, Users, Activity, Clock, ShieldAlert, CheckCircle2, Phone, PhoneCall, FileText, DollarSign, UserPlus, MapPin, AlertTriangle, X } from 'lucide-react';
 import { appointmentService } from './services/appointmentService';
 import { doctorService } from '../doctors/services/doctorService';
 import { DoctorQueueItem } from './types';
@@ -17,9 +17,24 @@ export const DoctorChamberPage: React.FC = () => {
   const [queue, setQueue] = useState<DoctorQueueItem[]>([]);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [chamberStatus, setChamberStatus] = useState<string>('ACTIVE');
-  const [currentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const [currentDate] = useState<string>(() => toLocalDateStr(new Date()));
   const [loading, setLoading] = useState(false);
-  
+  // Doctor chamber filter (multi-chamber)
+  const [chamberFilter, setChamberFilter] = useState<string>('');
+  // Notes modal
+  const [noteAppt, setNoteAppt] = useState<DoctorQueueItem | null>(null);
+  const [noteText, setNoteText] = useState('');
+  // Walk-in modal
+  const [showWalkIn, setShowWalkIn] = useState(false);
+  const [walkName, setWalkName] = useState('');
+  const [walkPhone, setWalkPhone] = useState('');
+  const [walkComplaint, setWalkComplaint] = useState('');
+  const [walkVisitType, setWalkVisitType] = useState('new_consultation');
+  const [walkSaving, setWalkSaving] = useState(false);
+  // Auto-resume beep
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   // 5-minute break countdown timer (300 seconds)
   const [breakSeconds, setBreakSeconds] = useState<number>(300);
 
@@ -38,12 +53,14 @@ export const DoctorChamberPage: React.FC = () => {
       });
   }, [user]);
 
-  const loadQueue = async (docId: string) => {
+  const loadQueue = async (docId: string, locationId?: string) => {
     if (!docId) return;
     try {
       setLoading(true);
-      const res = await appointmentService.getDoctorQueue(docId, currentDate);
+      const res = await appointmentService.getDoctorQueue(docId, currentDate, locationId);
       setQueue(res.queue || res.items || []);
+      setIsPaused(!!res.isPaused);
+      setChamberStatus(res.chamberStatus || (res.isPaused ? 'EMPTY (BREAK)' : 'ACTIVE'));
     } catch (e) {
       console.error(e);
     } finally {
@@ -53,16 +70,27 @@ export const DoctorChamberPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedDoctorId) {
-      loadQueue(selectedDoctorId);
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
     }
-  }, [selectedDoctorId]);
+  }, [selectedDoctorId, chamberFilter, currentDate]);
 
-  // Countdown timer effect during break
+  // Countdown timer effect during break + auto-resume beep at 0
   useEffect(() => {
     let timer: any = null;
     if (isPaused && breakSeconds > 0) {
       timer = setInterval(() => {
-        setBreakSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+        setBreakSeconds((prev) => {
+          if (prev <= 1) {
+            // Beep on finish
+            try {
+              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const o = ctx.createOscillator(); o.frequency.value = 880;
+              o.connect(ctx.destination); o.start(); setTimeout(() => o.stop(), 400);
+            } catch {}
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
     }
     return () => {
@@ -77,7 +105,7 @@ export const DoctorChamberPage: React.FC = () => {
       setIsPaused(true);
       setBreakSeconds(300);
       setChamberStatus(res.chamberStatus || 'EMPTY (BREAK)');
-      loadQueue(selectedDoctorId);
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
     } catch (e: any) {
       alert(e.response?.data?.error?.message || 'Failed to pause queue');
     }
@@ -90,19 +118,69 @@ export const DoctorChamberPage: React.FC = () => {
       setIsPaused(false);
       setChamberStatus('ACTIVE');
       setBreakSeconds(300);
-      loadQueue(selectedDoctorId);
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
     } catch (e: any) {
       alert(e.response?.data?.error?.message || 'Failed to resume queue');
     }
   };
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = async (id: string, notes?: string) => {
     try {
-      await appointmentService.updateStatus(id, 'completed');
-      loadQueue(selectedDoctorId);
+      await appointmentService.updateStatus(id, 'completed', notes);
+      setNoteAppt(null); setNoteText('');
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
     } catch (e: any) {
       alert(e.response?.data?.error?.message || 'Failed to complete visit');
     }
+  };
+
+  const handleNoShow = async (id: string) => {
+    if (!confirm(language === 'bn' ? 'রোগী আসেনি হিসেবে চিহ্নিত করবেন?' : 'Mark as no-show?')) return;
+    try {
+      await appointmentService.updateStatus(id, 'no_show');
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
+    } catch (e: any) {
+      alert(e.response?.data?.error?.message || 'Failed');
+    }
+  };
+
+  const handlePaid = async (id: string, paid: boolean) => {
+    try {
+      await appointmentService.updatePayment(id, paid ? 'paid' : 'pay_at_chamber');
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
+    } catch (e: any) {
+      alert(e.response?.data?.error?.message || 'Failed to update payment');
+    }
+  };
+
+  const handleWalkIn = async () => {
+    if (!selectedDoctorId || !walkName.trim()) return;
+    try {
+      setWalkSaving(true);
+      // Walk-in at next 15-min slot today
+      const now = new Date();
+      const start = new Date(now.getTime() + 5 * 60000);
+      start.setSeconds(0, 0);
+      const end = new Date(start.getTime() + 20 * 60000);
+      const toUtc = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().replace('.000Z','Z');
+      // Find location for fee/chamber
+      const chambers = currentDoctor ? getDoctorChambers(currentDoctor) : [];
+      const loc = chambers.find(c => c.id === chamberFilter) || chambers[0];
+      await appointmentService.createWalkIn({
+        doctorId: selectedDoctorId,
+        locationId: loc?.id,
+        patientName: walkName.trim(),
+        patientPhone: walkPhone.trim() || undefined,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        visitType: walkVisitType,
+        chiefComplaint: walkComplaint || 'Walk-in consultation',
+      });
+      setShowWalkIn(false); setWalkName(''); setWalkPhone(''); setWalkComplaint('');
+      loadQueue(selectedDoctorId, chamberFilter || undefined);
+    } catch (e: any) {
+      alert(e.response?.data?.error?.message || e.message || 'Walk-in failed');
+    } finally { setWalkSaving(false); }
   };
 
   const formatTimer = (seconds: number) => {
@@ -127,7 +205,7 @@ export const DoctorChamberPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <select
             value={selectedDoctorId}
             onChange={(e) => setSelectedDoctorId(e.target.value)}
@@ -140,7 +218,25 @@ export const DoctorChamberPage: React.FC = () => {
               </option>
             ))}
           </select>
-
+          {/* Per-chamber filter */}
+          {currentDoctor && getDoctorChambers(currentDoctor).length > 1 && (
+            <select
+              value={chamberFilter}
+              onChange={(e) => setChamberFilter(e.target.value)}
+              className="p-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white flex items-center gap-1"
+            >
+              <option value="">{language === 'bn' ? 'সব চেম্বার' : 'All Chambers'}</option>
+              {getDoctorChambers(currentDoctor).map((c) => (
+                <option key={c.id} value={c.id}>{c.facilityName} — {c.chamberRoom}</option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={() => setShowWalkIn(true)}
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" /> {language === 'bn' ? 'ওয়াক-ইন যোগ' : 'Walk-in'}
+          </button>
           {isPaused ? (
             <button
               onClick={handleResume}
@@ -160,6 +256,20 @@ export const DoctorChamberPage: React.FC = () => {
           )}
         </div>
       </div>
+      {/* BMDC / Photo nudge */}
+      {currentDoctor && (!currentDoctor.profilePhotoUrl || currentDoctor.bmdcNumber === 'BMDC-PENDING' || !currentDoctor.bmdcNumber) && (
+        <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-xs">
+          <ShieldAlert className="w-5 h-5 text-blue-600 shrink-0" />
+          <div>
+            <p className="font-bold text-blue-900">{language === 'bn' ? 'প্রোফাইল সম্পূর্ণ করুন' : 'Complete your profile'}</p>
+            <p className="text-blue-700 mt-1">
+              {!currentDoctor.profilePhotoUrl ? (language === 'bn' ? 'ছবি নেই — ' : 'No photo — ') : ''}
+              {(currentDoctor.bmdcNumber === 'BMDC-PENDING' || !currentDoctor.bmdcNumber) ? (language === 'bn' ? 'BMDC নম্বর যাচাই বাকি। ' : 'BMDC pending. ') : ''}
+              {language === 'bn' ? 'প্রোফাইল পেজ থেকে ছবি ও BMDC আপডেট করুন।' : 'Update photo & BMDC from profile page.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Chamber Status & Countdown Banner */}
       <div
@@ -203,6 +313,33 @@ export const DoctorChamberPage: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {/* Day overview cards */}
+      {(() => {
+        const completed = queue.filter(q => q.status === 'completed').length;
+        const waiting = queue.filter(q => q.status === 'confirmed' || q.status === 'pending').length;
+        const noShow = queue.filter(q => q.status === 'no_show').length;
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
+              <p className="text-[10px] font-bold uppercase text-slate-400">{language === 'bn' ? 'আজ মোট' : 'Total Today'}</p>
+              <p className="text-2xl font-black text-slate-900">{queue.length}</p>
+            </div>
+            <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 text-center">
+              <p className="text-[10px] font-bold uppercase text-emerald-700">{language === 'bn' ? 'সম্পন্ন' : 'Completed'}</p>
+              <p className="text-2xl font-black text-emerald-800">{completed}</p>
+            </div>
+            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center">
+              <p className="text-[10px] font-bold uppercase text-amber-700">{language === 'bn' ? 'অপেক্ষমাণ' : 'Waiting'}</p>
+              <p className="text-2xl font-black text-amber-800">{waiting}</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-center">
+              <p className="text-[10px] font-bold uppercase text-slate-500">{language === 'bn' ? 'অনুপস্থিত' : 'No-show'}</p>
+              <p className="text-2xl font-black text-slate-700">{noShow}</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Today's Queue Table */}
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
@@ -282,20 +419,41 @@ export const DoctorChamberPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      {item.status !== 'completed' ? (
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
+                        {item.phone && (
+                          <a href={`tel:${item.phone}`} className="p-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200" title={language === 'bn' ? 'কল করুন' : 'Call'}>
+                            <Phone className="w-3.5 h-3.5" />
+                          </a>
+                        )}
                         <button
-                          onClick={() => handleComplete(item.id)}
-                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm transition inline-flex items-center space-x-1 cursor-pointer"
+                          onClick={() => handlePaid(item.id, true)}
+                          className="p-1.5 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 border border-amber-200"
+                          title={language === 'bn' ? 'পেমেন্ট আদায়' : 'Mark paid'}
                         >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>{t('chamber.action_complete', 'Complete Visit')}</span>
+                          <DollarSign className="w-3.5 h-3.5" />
                         </button>
-                      ) : (
-                        <span className="text-[11px] text-emerald-700 font-bold inline-flex items-center space-x-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>{t('chamber.action_done', 'Consultation Done')}</span>
-                        </span>
-                      )}
+                        {item.status !== 'completed' && item.status !== 'no_show' ? (
+                          <>
+                            <button
+                              onClick={() => setNoteAppt(item)}
+                              className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <FileText className="w-3.5 h-3.5" />{language === 'bn' ? 'নোট ও শেষ' : 'Note & Done'}
+                            </button>
+                            <button
+                              onClick={() => handleNoShow(item.id)}
+                              className="px-2 py-1 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold cursor-pointer"
+                            >
+                              {language === 'bn' ? 'অনুপস্থিত' : 'No-show'}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-emerald-700 font-bold inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{item.status === 'no_show' ? (language === 'bn' ? 'অনুপস্থিত' : 'No-show') : t('chamber.action_done', 'Done')}</span>
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -304,6 +462,43 @@ export const DoctorChamberPage: React.FC = () => {
           </div>
         )}
       </div>
+      {/* Notes modal */}
+      {noteAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-slate-900">{language === 'bn' ? 'ভিজিট নোট' : 'Visit Note'} — #{noteAppt.serial} {noteAppt.patientName}</h3>
+              <button onClick={() => setNoteAppt(null)} className="p-1.5 hover:bg-slate-100 rounded-full"><X className="w-4 h-4" /></button>
+            </div>
+            <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={4} placeholder={language === 'bn' ? 'BP, পরামর্শ, ওষুধ...' : 'BP, advice, prescription note...'} className="w-full p-3 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500" />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setNoteAppt(null)} className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold">{language === 'bn' ? 'বাদ দিন' : 'Cancel'}</button>
+              <button onClick={() => handleComplete(noteAppt.id, noteText)} className="flex-1 py-2.5 bg-emerald-700 text-white rounded-xl text-xs font-black">{language === 'bn' ? 'সম্পন্ন করুন' : 'Complete'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Walk-in modal */}
+      {showWalkIn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-900">{language === 'bn' ? 'ওয়াক-ইন রোগী যোগ' : 'Add Walk-in Patient'}</h3>
+              <button onClick={() => setShowWalkIn(false)} className="p-1.5 hover:bg-slate-100 rounded-full"><X className="w-4 h-4" /></button>
+            </div>
+            <input value={walkName} onChange={e => setWalkName(e.target.value)} placeholder={language === 'bn' ? 'রোগীর নাম *' : 'Patient name *'} className="w-full p-2.5 border border-slate-200 rounded-xl text-xs" />
+            <input value={walkPhone} onChange={e => setWalkPhone(e.target.value)} placeholder={language === 'bn' ? 'ফোন (ঐচ্ছিক)' : 'Phone (optional)'} className="w-full p-2.5 border border-slate-200 rounded-xl text-xs" />
+            <div className="grid grid-cols-2 gap-2">
+              <select value={walkVisitType} onChange={e => setWalkVisitType(e.target.value)} className="p-2.5 border border-slate-200 rounded-xl text-xs bg-white">
+                <option value="new_consultation">{language === 'bn' ? 'নতুন ভিজিট' : 'New visit'}</option>
+                <option value="followup">{language === 'bn' ? 'ফলো-আপ' : 'Follow-up'}</option>
+              </select>
+              <input value={walkComplaint} onChange={e => setWalkComplaint(e.target.value)} placeholder={language === 'bn' ? 'সমস্যা (ঐচ্ছিক)' : 'Complaint'} className="p-2.5 border border-slate-200 rounded-xl text-xs" />
+            </div>
+            <button onClick={handleWalkIn} disabled={!walkName.trim() || walkSaving} className="w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-black disabled:opacity-50">{walkSaving ? '...' : (language === 'bn' ? 'সিরিয়াল দিন' : 'Add to Queue')}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

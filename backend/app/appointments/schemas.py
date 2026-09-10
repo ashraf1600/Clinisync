@@ -42,6 +42,7 @@ class AppointmentRead(CamelModel):
     payment_status: str
     fee: float
     chief_complaint: Optional[str] = None
+    doctor_notes: Optional[str] = None
     created_at: datetime
 
 class AppointmentRescheduleRequest(CamelModel):
@@ -53,6 +54,20 @@ class AppointmentCancelRequest(CamelModel):
 
 class AppointmentStatusUpdateRequest(CamelModel):
     status: str
+    doctor_notes: Optional[str] = None
+
+class AppointmentPaymentUpdateRequest(CamelModel):
+    payment_status: str = Field(..., pattern="^(pay_at_chamber|paid|waived)$")
+
+class WalkInRequest(CamelModel):
+    doctor_id: uuid.UUID
+    location_id: Optional[uuid.UUID] = None
+    patient_name: str = Field(..., min_length=2)
+    patient_phone: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    visit_type: str = "new_consultation"
+    chief_complaint: Optional[str] = None
 
 class DoctorQueueItem(CamelModel):
     id: uuid.UUID

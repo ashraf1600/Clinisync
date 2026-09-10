@@ -413,7 +413,7 @@ class AppointmentService:
             )
         return {"id": str(appt.id), "status": "cancelled", "cancelledAt": datetime.now(timezone.utc).isoformat()}
 
-    async def update_status(self, appointment_id: uuid.UUID, new_status: str, actor: Optional[User] = None) -> dict:
+    async def update_status(self, appointment_id: uuid.UUID, new_status: str, actor: Optional[User] = None, doctor_notes: Optional[str] = None) -> dict:
         appt = await self.get_by_id(appointment_id)
         if not appt:
             raise NotFoundException("Appointment not found")
@@ -426,6 +426,8 @@ class AppointmentService:
         if new_status not in ["pending", "confirmed", "completed", "cancelled", "no_show"]:
             raise BadRequestException(f"Invalid status '{new_status}'")
         appt.status = new_status
+        if doctor_notes is not None:
+            appt.doctor_notes = doctor_notes.strip() or None
         await self.db.commit()
 
         doc_name = appt.doctor.user.name if (appt.doctor and appt.doctor.user) else "Doctor"
@@ -448,7 +450,137 @@ class AppointmentService:
                 f"Serial #{appt.token_number} with {doc_name} was cancelled by the clinic.",
                 appointment_id=appt.id, metadata=meta,
             )
-        return {"id": str(appt.id), "status": appt.status, "updatedAt": datetime.now(timezone.utc).isoformat()}
+        return {"id": str(appt.id), "status": appt.status, "doctorNotes": appt.doctor_notes, "updatedAt": datetime.now(timezone.utc).isoformat()}
+
+    async def update_payment(self, appointment_id: uuid.UUID, new_status: str, actor: Optional[User] = None) -> dict:
+        appt = await self.get_by_id(appointment_id)
+        if not appt:
+            raise NotFoundException("Appointment not found")
+        if actor is not None and actor.role != "admin":
+            if not appt.doctor or appt.doctor.user_id != actor.id:
+                raise ForbiddenException("Only the assigned doctor or an admin can update payment")
+        if new_status not in ("pay_at_chamber", "paid", "waived"):
+            raise BadRequestException("Invalid payment status")
+        appt.payment_status = new_status
+        await self.db.commit()
+        return {"id": str(appt.id), "paymentStatus": appt.payment_status, "updatedAt": datetime.now(timezone.utc).isoformat()}
+
+    async def walk_in(self, actor: User, data) -> AppointmentRead:
+        """Reception/doctor creates a walk-in serial (no prior patient account)."""
+        if actor.role not in ("doctor", "admin"):
+            raise ForbiddenException("Only doctors or clinic staff can add walk-ins")
+        # Verify doctor exists
+        doc_res = await self.db.execute(select(Doctor).where(Doctor.id == data.doctor_id))
+        doctor = doc_res.scalar_one_or_none()
+        if not doctor:
+            raise NotFoundException(f"Doctor '{data.doctor_id}' not found")
+        # Resolve patient: find by phone or create ephemeral guest user
+        phone = (data.patient_phone or "").strip() or None
+        name = data.patient_name.strip()
+        patient = None
+        if phone:
+            pres = await self.db.execute(select(User).where(User.phone == phone))
+            patient = pres.scalar_one_or_none()
+        if not patient:
+            # Create guest patient
+            import uuid as _uuid
+            guest_email = f"walkin_{_uuid.uuid4().hex[:8]}@guest.local"
+            patient = User(
+                name=name,
+                email=guest_email.lower(),
+                password_hash="$walkin$",
+                role="patient",
+                phone=phone,
+                timezone="Asia/Dhaka",
+            )
+            self.db.add(patient)
+            await self.db.flush()
+        else:
+            # Update name if guest
+            if patient.name != name:
+                patient.name = name
+
+        # Normalize times
+        st = data.start_time if data.start_time.tzinfo else data.start_time.replace(tzinfo=timezone.utc)
+        et = data.end_time if data.end_time.tzinfo else data.end_time.replace(tzinfo=timezone.utc)
+        if st <= datetime.now(timezone.utc):
+            raise BadRequestException("Walk-in slot must be in the future")
+        await self._acquire_slot_lock(data.doctor_id, st.date())
+        # Conflict check
+        conflict_query = select(Appointment).where(
+            and_(
+                Appointment.doctor_id == data.doctor_id,
+                Appointment.status.in_(["pending", "confirmed", "completed"]),
+                or_(
+                    and_(Appointment.start_time <= st, Appointment.end_time > st),
+                    and_(Appointment.start_time < et, Appointment.end_time >= et),
+                    and_(Appointment.start_time >= st, Appointment.end_time <= et),
+                ),
+            )
+        )
+        existing = await self.db.execute(conflict_query)
+        if existing.scalar_one_or_none():
+            raise SlotConflictException("Walk-in slot conflicts with an existing booking")
+        # Token for walk-in day (Dhaka bounds)
+        n_start, n_end = self._dhaka_day_bounds_utc(st.date())
+        max_q = select(func.max(Appointment.token_number)).where(
+            and_(Appointment.doctor_id == data.doctor_id, Appointment.start_time >= n_start, Appointment.start_time < n_end)
+        )
+        max_res = await self.db.execute(max_q)
+        next_token = (max_res.scalar_one_or_none() or 0) + 1
+
+        appt = Appointment(
+            patient_id=patient.id,
+            doctor_id=data.doctor_id,
+            location_id=data.location_id,
+            token_number=next_token,
+            chief_complaint=data.chief_complaint,
+            visit_type=data.visit_type,
+            start_time=st,
+            end_time=et,
+            status="confirmed",
+            payment_status="pay_at_chamber",
+        )
+        self.db.add(appt)
+        try:
+            await self.db.commit()
+            await self.db.refresh(appt)
+        except IntegrityError:
+            await self.db.rollback()
+            raise SlotConflictException("Walk-in slot just taken")
+
+        # Notify patient (if real user) and doctor chamber
+        try:
+            await self._notify(patient.id, "booking_confirmed", "Walk-in Serial Added 🎫",
+                f"Serial #{next_token:02d} with {doctor.user.name if doctor.user else 'Doctor'} at {st.strftime('%b %d, %I:%M %p')}.",
+                appointment_id=appt.id, metadata={"tokenNumber": next_token})
+        except Exception:
+            pass
+        doc_name = doctor.user.name if doctor.user else "Doctor"
+        is_follow = (data.visit_type or "new_consultation").lower() in ("followup", "follow_up", "follow-up")
+        raw_fee = doctor.followup_fee if is_follow and doctor.followup_fee is not None else doctor.consultation_fee
+        fee_val = float(raw_fee) if raw_fee is not None else 1000.0
+        return AppointmentRead(
+            id=appt.id,
+            patient_id=patient.id,
+            patient_name=patient.name,
+            doctor_id=appt.doctor_id,
+            location_id=appt.location_id,
+            doctor_name=doc_name,
+            specialization=doctor.specialization,
+            facility_name=doctor.facility_name,
+            chamber_room=doctor.chamber_room,
+            branch_area=None,
+            token_number=next_token,
+            start_time=st,
+            end_time=et,
+            status=appt.status,
+            payment_status=appt.payment_status,
+            fee=fee_val,
+            chief_complaint=appt.chief_complaint,
+            doctor_notes=None,
+            created_at=appt.created_at,
+        )
 
     async def verify_for_checkin(self, appointment_id: uuid.UUID, role: str) -> AppointmentVerifyResponse:
         """Reception check-in: validate a scanned chamber-pass QR code."""
@@ -486,7 +618,7 @@ class AppointmentService:
             fee=float(appt.doctor.consultation_fee) if (appt.doctor and appt.doctor.consultation_fee) else 0.0,
         )
 
-    async def get_doctor_queue(self, doctor_id: uuid.UUID, target_date: date, user_role: str) -> DoctorQueueResponse:
+    async def get_doctor_queue(self, doctor_id: uuid.UUID, target_date: date, user_role: str, location_id: Optional[uuid.UUID] = None) -> DoctorQueueResponse:
         start_of_day = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=timezone.utc)
         end_of_day = start_of_day + timedelta(days=1)
         now_utc = datetime.now(timezone.utc)
@@ -505,7 +637,7 @@ class AppointmentService:
         doctor_user = doctor_user_res.scalar_one_or_none()
         doctor_name = doctor_user.name if doctor_user else "Specialist Doctor"
 
-        # 2. Fetch appointments for target date
+        # 2. Fetch appointments for target date (optionally filtered by chamber)
         query = select(Appointment).where(
             and_(
                 Appointment.doctor_id == doctor_id,
@@ -513,7 +645,10 @@ class AppointmentService:
                 Appointment.start_time < end_of_day,
                 Appointment.status != "cancelled",
             )
-        ).order_by(Appointment.token_number.asc())
+        )
+        if location_id:
+            query = query.where(Appointment.location_id == location_id)
+        query = query.order_by(Appointment.token_number.asc())
 
         res = await self.db.execute(query)
         appts = res.scalars().all()

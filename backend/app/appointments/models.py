@@ -22,6 +22,7 @@ class Appointment(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="confirmed")
     payment_status: Mapped[str] = mapped_column(String(30), nullable=False, default="pay_at_chamber")
     cancellation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    doctor_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     reschedule_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

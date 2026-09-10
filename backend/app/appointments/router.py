@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.appointments.schemas import (
     AppointmentBookRequest, AppointmentRead, AppointmentRescheduleRequest,
     AppointmentCancelRequest, AppointmentStatusUpdateRequest,
+    AppointmentPaymentUpdateRequest, WalkInRequest,
     DoctorQueueResponse, QueuePauseRequest, QueuePauseResponse,
     QueueResumeResponse, AppointmentVerifyResponse
 )
@@ -55,18 +56,44 @@ async def update_appointment_status(
     db: AsyncSession = Depends(get_db)
 ):
     service = AppointmentService(db)
-    return await service.update_status(id, payload.status, actor=current_user)
+    return await service.update_status(id, payload.status, actor=current_user, doctor_notes=payload.doctor_notes)
+
+@router.put("/{id}/payment", status_code=status.HTTP_200_OK)
+async def update_appointment_payment(
+    id: uuid.UUID,
+    payload: AppointmentPaymentUpdateRequest,
+    current_user: Annotated[User, Depends(require_doctor)],
+    db: AsyncSession = Depends(get_db)
+):
+    service = AppointmentService(db)
+    return await service.update_payment(id, payload.payment_status, actor=current_user)
+
+@router.post("/walk-in", response_model=AppointmentRead, status_code=status.HTTP_201_CREATED)
+async def create_walk_in(
+    payload: WalkInRequest,
+    current_user: Annotated[User, Depends(require_doctor)],
+    db: AsyncSession = Depends(get_db)
+):
+    service = AppointmentService(db)
+    return await service.walk_in(current_user, payload)
 
 @router.get("/doctor/{doctorId}", response_model=DoctorQueueResponse, status_code=status.HTTP_200_OK)
 async def get_doctor_chamber_queue(
     doctorId: uuid.UUID,
     date_param: date = Query(..., alias="date", description="Target date YYYY-MM-DD"),
+    location_id: Optional[str] = Query(None, alias="locationId"),
     current_user: Annotated[Optional[User], Depends(get_optional_current_user)] = None,
     db: AsyncSession = Depends(get_db)
 ):
+    loc = None
+    if location_id and location_id != "default":
+        try:
+            loc = uuid.UUID(str(location_id))
+        except Exception:
+            loc = None
     service = AppointmentService(db)
     role = current_user.role if current_user else "guest"
-    return await service.get_doctor_queue(doctorId, date_param, role)
+    return await service.get_doctor_queue(doctorId, date_param, role, location_id=loc)
 
 @router.get("/patient/me", response_model=List[AppointmentRead], status_code=status.HTTP_200_OK)
 async def get_my_appointments(
