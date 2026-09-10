@@ -125,8 +125,18 @@ class AppointmentService:
             if not location:
                 raise NotFoundException("Selected doctor location not found or inactive")
 
-        # 1b. Serialize per doctor-day so concurrent books can't both pass the check below
-        start_day = data.start_time.date() if isinstance(data.start_time, datetime) else date.today()
+        # 1b. Past-booking guard (Dhaka wall-clock already resolved in availability; here just wall-clock)
+        now_utc = datetime.now(timezone.utc)
+        # Pydantic may give naive UTC datetimes; normalize
+        st = data.start_time if data.start_time.tzinfo else data.start_time.replace(tzinfo=timezone.utc)
+        et = data.end_time if data.end_time.tzinfo else data.end_time.replace(tzinfo=timezone.utc)
+        if st <= now_utc:
+            raise BadRequestException("Cannot book a past time slot. Please choose a future slot.")
+        if et <= st:
+            raise BadRequestException("End time must be after start time.")
+
+        # 1c. Serialize per doctor-day so concurrent books can't both pass the check below
+        start_day = st.date()
         await self._acquire_slot_lock(data.doctor_id, start_day)
 
         # 2. Check for slot conflict (application layer + DB exclusion trap)
@@ -201,7 +211,10 @@ class AppointmentService:
             await self.db.rollback()
 
         doc_name = doctor.user.name if (doctor and doctor.user) else "Doctor"
-        doc_fee = float(doctor.consultation_fee) if doctor.consultation_fee else 1000.0
+        # Use followup fee when visit type is follow-up
+        is_followup = (data.visit_type or appt.visit_type or "new_consultation").lower() in ("followup", "follow_up", "follow-up")
+        raw_fee = doctor.followup_fee if is_followup and doctor.followup_fee is not None else doctor.consultation_fee
+        doc_fee = float(raw_fee) if raw_fee is not None else 1000.0
         fac_name = location.facility_name if location else (doctor.facility_name if doctor else "Popular Diagnostic Centre")
         room_name = location.chamber_room if location else (doctor.chamber_room if doctor else "Room #402, Level 4")
         branch_name = location.branch_area if location else None
@@ -210,6 +223,17 @@ class AppointmentService:
         patient_res = await self.db.execute(select(User).where(User.id == patient_id))
         patient_user = patient_res.scalar_one_or_none()
         patient_name = patient_user.name if patient_user else None
+
+        # Notify doctor as well (their bell was silent before)
+        if doctor.user_id:
+            await self._notify(
+                doctor.user_id,
+                "booking_confirmed",
+                "New Booking 📋",
+                f"Serial #{next_token:02d} · {patient_name or 'Patient'} booked {st.strftime('%b %d, %I:%M %p')}.",
+                appointment_id=appt.id,
+                metadata={"tokenNumber": next_token, "patientName": patient_name or "Patient", "startTime": st.isoformat()},
+            )
 
         return AppointmentRead(
             id=appt.id,
@@ -241,8 +265,20 @@ class AppointmentService:
         if appt.status in ["cancelled", "completed"]:
             raise BadRequestException(f"Cannot reschedule appointment in status '{appt.status}'")
 
+        # Same-slot no-op guard
+        if appt.start_time == data.new_start_time and appt.end_time == data.new_end_time:
+            raise BadRequestException("New slot is the same as the current slot. Pick a different time.")
+
+        # Past-slot guard
+        ns = data.new_start_time if data.new_start_time.tzinfo else data.new_start_time.replace(tzinfo=timezone.utc)
+        ne = data.new_end_time if data.new_end_time.tzinfo else data.new_end_time.replace(tzinfo=timezone.utc)
+        if ns <= datetime.now(timezone.utc):
+            raise BadRequestException("Cannot reschedule to a past time slot.")
+        if ne <= ns:
+            raise BadRequestException("End time must be after start time.")
+
         # Serialize per doctor-day BEFORE checking (same race as booking)
-        new_day = data.new_start_time.date() if isinstance(data.new_start_time, datetime) else date.today()
+        new_day = ns.date()
         await self._acquire_slot_lock(appt.doctor_id, new_day)
 
         # Check collision on new slot
@@ -261,6 +297,22 @@ class AppointmentService:
         existing = await self.db.execute(conflict_query)
         if existing.scalar_one_or_none():
             raise SlotConflictException("The requested new slot is already booked. Please choose another time.")
+
+        # Retoken: new serial for the new calendar day (tokens are per doctor per day)
+        old_day = appt.start_time.astimezone(timezone.utc).date() if appt.start_time.tzinfo else appt.start_time.date()
+        if ns.date() != old_day:
+            n_start, n_end = self._dhaka_day_bounds_utc(ns.date())
+            max_q = select(func.max(Appointment.token_number)).where(
+                and_(
+                    Appointment.doctor_id == appt.doctor_id,
+                    Appointment.start_time >= n_start,
+                    Appointment.start_time < n_end,
+                    Appointment.id != appt.id,
+                )
+            )
+            max_res = await self.db.execute(max_q)
+            cur_max = max_res.scalar_one_or_none()
+            appt.token_number = (cur_max or 0) + 1
 
         # Update appointment slot
         appt.start_time = data.new_start_time
@@ -282,6 +334,22 @@ class AppointmentService:
             appointment_id=appt.id,
             metadata={"tokenNumber": appt.token_number, "doctorName": doc_name, "newStartTime": data.new_start_time.isoformat()},
         )
+        # Notify doctor too
+        if appt.doctor and appt.doctor.user_id:
+            pat_name = appt.patient.name if appt.patient else "Patient"
+            await self._notify(
+                appt.doctor.user_id,
+                "queue_update",
+                "Patient Rescheduled 🔄",
+                f"{pat_name} (serial #{appt.token_number}) moved to {new_when}.",
+                appointment_id=appt.id,
+                metadata={"tokenNumber": appt.token_number, "patientName": pat_name, "newStartTime": data.new_start_time.isoformat()},
+            )
+
+        # Fee respects follow-up pricing
+        is_follow = (appt.visit_type or "new_consultation").lower() in ("followup", "follow_up", "follow-up")
+        raw_fee = appt.doctor.followup_fee if is_follow and appt.doctor and appt.doctor.followup_fee is not None else (appt.doctor.consultation_fee if appt.doctor else None)
+        fee_val = float(raw_fee) if raw_fee is not None else 1200.0
 
         return AppointmentRead(
             id=appt.id,
@@ -299,15 +367,25 @@ class AppointmentService:
             end_time=appt.end_time,
             status=appt.status,
             payment_status=appt.payment_status,
-            fee=float(appt.doctor.consultation_fee) if appt.doctor else 1200.0,
+            fee=fee_val,
             chief_complaint=appt.chief_complaint,
             created_at=appt.created_at
         )
 
-    async def cancel(self, appointment_id: uuid.UUID, reason: str = "Cancelled by user") -> dict:
+    async def cancel(self, appointment_id: uuid.UUID, reason: str = "Cancelled by user", actor: Optional[User] = None) -> dict:
         appt = await self.get_by_id(appointment_id)
         if not appt:
             raise NotFoundException("Appointment not found")
+        # Ownership: only the booking patient or an admin may cancel
+        if actor is not None:
+            is_owner = appt.patient_id == actor.id
+            is_admin = actor.role == "admin"
+            if not is_owner and not is_admin:
+                raise ForbiddenException("Only the booking patient or an admin can cancel this appointment")
+        if appt.status == "cancelled":
+            raise BadRequestException("Appointment is already cancelled")
+        if appt.status == "completed":
+            raise BadRequestException("Cannot cancel a completed appointment")
         appt.status = "cancelled"
         appt.cancellation_reason = reason
         await self.db.commit()
@@ -322,12 +400,29 @@ class AppointmentService:
             appointment_id=appt.id,
             metadata={"tokenNumber": appt.token_number, "doctorName": doc_name, "reason": reason},
         )
+        # Notify doctor
+        if appt.doctor and appt.doctor.user_id:
+            pat_name = appt.patient.name if appt.patient else "Patient"
+            await self._notify(
+                appt.doctor.user_id,
+                "cancelled",
+                "Appointment Cancelled ❌",
+                f"{pat_name} cancelled serial #{appt.token_number} for {when}.",
+                appointment_id=appt.id,
+                metadata={"tokenNumber": appt.token_number, "patientName": pat_name, "reason": reason},
+            )
         return {"id": str(appt.id), "status": "cancelled", "cancelledAt": datetime.now(timezone.utc).isoformat()}
 
-    async def update_status(self, appointment_id: uuid.UUID, new_status: str) -> dict:
+    async def update_status(self, appointment_id: uuid.UUID, new_status: str, actor: Optional[User] = None) -> dict:
         appt = await self.get_by_id(appointment_id)
         if not appt:
             raise NotFoundException("Appointment not found")
+        # Only the assigned doctor or an admin may change visit status
+        if actor is not None:
+            if actor.role != "admin":
+                # Doctor must own this doctor profile
+                if not appt.doctor or appt.doctor.user_id != actor.id:
+                    raise ForbiddenException("Only the assigned doctor or an admin can update this appointment status")
         if new_status not in ["pending", "confirmed", "completed", "cancelled", "no_show"]:
             raise BadRequestException(f"Invalid status '{new_status}'")
         appt.status = new_status
@@ -561,29 +656,34 @@ class AppointmentService:
         res = await self.db.execute(query)
         appts = res.scalars().all()
 
-        return [
-            AppointmentRead(
-                id=a.id,
-                patient_id=a.patient_id,
-                patient_name=a.patient.name if a.patient else None,
-                doctor_id=a.doctor_id,
-                location_id=a.location_id,
-                doctor_name=a.doctor.user.name if a.doctor and a.doctor.user else "Doctor",
-                specialization=a.doctor.specialization if a.doctor else "General",
-                facility_name=a.location.facility_name if a.location else (a.doctor.facility_name if a.doctor else "Popular Diagnostic Centre"),
-                chamber_room=a.location.chamber_room if a.location else (a.doctor.chamber_room if a.doctor else "Room #402, Level 4"),
-                branch_area=a.location.branch_area if a.location else None,
-                token_number=a.token_number,
-                start_time=a.start_time,
-                end_time=a.end_time,
-                status=a.status,
-                payment_status=a.payment_status,
-                fee=float(a.doctor.consultation_fee) if a.doctor else 1200.0,
-                chief_complaint=a.chief_complaint,
-                created_at=a.created_at
+        out: List[AppointmentRead] = []
+        for a in appts:
+            is_follow = (a.visit_type or "new_consultation").lower() in ("followup", "follow_up", "follow-up")
+            raw = a.doctor.followup_fee if is_follow and a.doctor and a.doctor.followup_fee is not None else (a.doctor.consultation_fee if a.doctor else None)
+            f = float(raw) if raw is not None else 1200.0
+            out.append(
+                AppointmentRead(
+                    id=a.id,
+                    patient_id=a.patient_id,
+                    patient_name=a.patient.name if a.patient else None,
+                    doctor_id=a.doctor_id,
+                    location_id=a.location_id,
+                    doctor_name=a.doctor.user.name if a.doctor and a.doctor.user else "Doctor",
+                    specialization=a.doctor.specialization if a.doctor else "General",
+                    facility_name=a.location.facility_name if a.location else (a.doctor.facility_name if a.doctor else "Popular Diagnostic Centre"),
+                    chamber_room=a.location.chamber_room if a.location else (a.doctor.chamber_room if a.doctor else "Room #402, Level 4"),
+                    branch_area=a.location.branch_area if a.location else None,
+                    token_number=a.token_number,
+                    start_time=a.start_time,
+                    end_time=a.end_time,
+                    status=a.status,
+                    payment_status=a.payment_status,
+                    fee=f,
+                    chief_complaint=a.chief_complaint,
+                    created_at=a.created_at,
+                )
             )
-            for a in appts
-        ]
+        return out
 
     async def pause_queue(self, doctor_id: uuid.UUID, data: QueuePauseRequest) -> QueuePauseResponse:
         # Enforce Doctor Break "Empty Chamber" Invariant:
@@ -593,6 +693,26 @@ class AppointmentService:
         if not doctor:
             raise NotFoundException(f"Doctor '{doctor_id}' not found")
         doc_name = doctor.user.name if doctor.user else "Doctor"
+
+        # Complete any in-chamber appointment for today so the chamber is empty during break
+        today = datetime.now(_DHAKA_TZ).date()
+        start_utc, end_utc = self._dhaka_day_bounds_utc(today)
+        active_res = await self.db.execute(
+            select(Appointment).where(
+                and_(
+                    Appointment.doctor_id == doctor_id,
+                    Appointment.status.in_(["in_consultation", "in_progress", "in_chamber"]),
+                    Appointment.start_time >= start_utc,
+                    Appointment.start_time < end_utc,
+                )
+            )
+        )
+        completed_any = False
+        for act in active_res.scalars().all():
+            act.status = "completed"
+            completed_any = True
+        if completed_any:
+            await self.db.commit()
 
         now = datetime.now(timezone.utc)
         resume_at = now + timedelta(minutes=data.pause_minutes)

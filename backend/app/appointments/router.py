@@ -45,7 +45,7 @@ async def cancel_appointment(
     db: AsyncSession = Depends(get_db)
 ):
     service = AppointmentService(db)
-    return await service.cancel(id, payload.reason or "Patient cancellation")
+    return await service.cancel(id, payload.reason or "Patient cancellation", actor=current_user)
 
 @router.put("/{id}/status", status_code=status.HTTP_200_OK)
 async def update_appointment_status(
@@ -55,7 +55,7 @@ async def update_appointment_status(
     db: AsyncSession = Depends(get_db)
 ):
     service = AppointmentService(db)
-    return await service.update_status(id, payload.status)
+    return await service.update_status(id, payload.status, actor=current_user)
 
 @router.get("/doctor/{doctorId}", response_model=DoctorQueueResponse, status_code=status.HTTP_200_OK)
 async def get_doctor_chamber_queue(

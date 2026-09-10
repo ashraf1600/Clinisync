@@ -478,6 +478,35 @@ export const ScheduleManagerPage: React.FC = () => {
         </div>
       </div>
 
+      {shifts.length === 0 && !loadingShifts && (
+        <div className="p-5 rounded-2xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-black text-amber-900">
+                {language === 'bn'
+                  ? 'এই ডাক্তারের কোনো চেম্বার স্লট কনফিগার করা হয়নি'
+                  : 'No chamber slots configured for this doctor'}
+              </p>
+              <p className="text-xs text-amber-800 mt-1">
+                {language === 'bn'
+                  ? 'ডিফল্ট ১৭:০০–২১:০০ দেখানো হচ্ছে। রোগীরা সঠিক সময়ে বুক করতে "স্লট সময় যোগ করুন" দিয়ে আসল সময় সেট করুন।'
+                  : 'Default 17:00–21:00 is shown for preview. Add real slot times with “Add Slot Time” so patients book the correct hours.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const first = locations[0];
+              if (first) handleOpenAddShiftModal(first);
+            }}
+            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black shadow cursor-pointer shrink-0"
+          >
+            {language === 'bn' ? 'প্রথম স্লট যোগ করুন' : 'Add First Slot Time'}
+          </button>
+        </div>
+      )}
+
       {statusFeedback && (
         <div
           className={`p-4 rounded-2xl text-xs font-bold flex items-center space-x-2 border shadow-sm transition-all ${
