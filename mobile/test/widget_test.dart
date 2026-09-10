@@ -54,10 +54,11 @@ void main() {
     await tester.pumpWidget(const CliniSyncApp());
     await tester.pumpAndSettle();
 
-    // Bottom nav labels render on the first frame (no network needed)
-    expect(find.text('Specialists'), findsOneWidget);
-    expect(find.text('My Tokens'), findsOneWidget);
-    expect(find.text('Live Queue'), findsOneWidget);
-    expect(find.text('Alerts'), findsOneWidget);
+    // Bottom nav labels render on the first frame (default language is Bangla)
+    expect(find.text('হোম'), findsOneWidget);
+    expect(find.text('ডাক্তার'), findsOneWidget);
+    expect(find.text('টোকেন'), findsOneWidget);
+    expect(find.text('লাইভ কিউ'), findsOneWidget);
+    expect(find.text('অ্যালার্ট'), findsOneWidget);
   });
 }
