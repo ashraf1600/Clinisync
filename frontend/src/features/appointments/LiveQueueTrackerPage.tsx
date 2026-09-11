@@ -29,6 +29,7 @@ import { Doctor } from '../doctors/types';
 import { DoctorQueueResponse, Appointment } from './types';
 import { DoctorAvatar } from '../../components/DoctorAvatar';
 import { ChamberPassModal } from '../../components/ChamberPassModal';
+import { PageShell, PageHero, EmptyState } from '../../components/Page';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -248,63 +249,48 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Top Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white mb-8 shadow-xl border border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center space-x-2">
-              <span className="flex items-center space-x-1.5 bg-teal-500/20 text-teal-300 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider border border-teal-500/30">
-                <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping" />
-                <span>{language === 'bn' ? 'রিয়েল-টাইম লাইভ চেম্বার ট্র্যাকার' : 'Real-Time Chamber Queue Tracker'}</span>
-              </span>
-              <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline-block">
-                📅 {new Date().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              {language === 'bn' ? 'লাইভ সিরিয়াল ট্র্যাকার ও চেম্বার কিউ' : 'Live Chamber Serial Tracker'}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300">
-              {language === 'bn'
-                ? 'ডাক্তার নির্বাচন করে রিয়েল-টাইম চলমান সিরিয়াল, অপেক্ষমাণ রোগীর সংখ্যা ও আনুমানিক অপেক্ষার সময় দেখুন।'
-                : 'Select any specialist doctor to track the live running serial, waiting patient queue, and estimated consultation time.'}
-            </p>
-          </div>
-
-          {/* Quick Refresh & Auto-Sync Controls */}
-          <div className="flex items-center space-x-3 bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700/60 self-start md:self-auto">
+    <PageShell>
+      <PageHero
+        eyebrow={
+          `${language === 'bn' ? 'রিয়েল-টাইম লাইভ চেম্বার ট্র্যাকার' : 'Real-Time Chamber Queue Tracker'} · 📅 ${new Date().toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+        }
+        title={<>{language === 'bn' ? 'লাইভ সিরিয়াল ট্র্যাকার ও চেম্বার কিউ' : 'Live Chamber Serial Tracker'}</>}
+        subtitle={
+          language === 'bn'
+            ? 'ডাক্তার নির্বাচন করে রিয়েল-টাইম চলমান সিরিয়াল, অপেক্ষমাণ রোগীর সংখ্যা ও আনুমানিক অপেক্ষার সময় দেখুন।'
+            : 'Select any specialist doctor to track the live running serial, waiting patient queue, and estimated consultation time.'
+        }
+        actions={
+          <div className="flex items-center gap-2.5 bg-white/10 p-2 rounded-2xl border border-white/15">
             <button
               onClick={() => fetchDoctorQueue(selectedDoctorId, trackDate, true)}
               disabled={isRefreshing}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white rounded-xl text-xs font-bold transition shadow cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>{language === 'bn' ? 'রিফ্রেশ' : 'Refresh'}</span>
             </button>
-
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition border cursor-pointer ${
                 autoRefresh
-                  ? 'bg-teal-900/50 text-teal-300 border-teal-500/40'
-                  : 'bg-slate-700/50 text-slate-400 border-slate-600'
+                  ? 'bg-teal-500/20 text-teal-200 border-teal-400/40'
+                  : 'bg-white/5 text-slate-400 border-white/10'
               }`}
             >
-              <Radio className={`w-3.5 h-3.5 ${autoRefresh ? 'text-teal-400 animate-pulse' : ''}`} />
+              <Radio className={`w-3.5 h-3.5 ${autoRefresh ? 'text-teal-300 animate-pulse' : ''}`} />
               <span>{autoRefresh ? (language === 'bn' ? 'অটো-সিঙ্ক চালু' : 'Live Sync ON') : (language === 'bn' ? 'অটো-সিঙ্ক বন্ধ' : 'Live Sync OFF')}</span>
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Layout: Doctor Selector Sidebar (Left) + Live Queue Board (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Column: Doctor Selection (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="lift bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center space-x-2">
                 <Stethoscope className="w-4 h-4 text-teal-600" />
@@ -820,10 +806,11 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
               )}
             </>
           ) : (
-            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-              <Stethoscope className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-500">{language === 'bn' ? 'বাম পাশের তালিকা থেকে একজন ডাক্তার নির্বাচন করুন।' : 'Please select a doctor from the list.'}</p>
-            </div>
+            <EmptyState
+              icon={<Stethoscope className="w-8 h-8" />}
+              title={language === 'bn' ? 'ডাক্তার নির্বাচন করুন' : 'Select a doctor'}
+              body={language === 'bn' ? 'বাম পাশের তালিকা থেকে একজন ডাক্তার নির্বাচন করুন।' : 'Please select a doctor from the list.'}
+            />
           )}
         </div>
       </div>
@@ -833,6 +820,6 @@ export const LiveQueueTrackerPage: React.FC<LiveQueueTrackerPageProps> = ({
         <ChamberPassModal appt={selectedSlipAppt} onClose={() => setSelectedSlipAppt(null)} />
       )}
 
-    </div>
+    </PageShell>
   );
 };

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { doctorService } from '../doctors/services/doctorService';
 import { availabilityService } from './services/availabilityService';
+import { PageShell } from '../../components/Page';
 import { Doctor, DoctorChamberLocation } from '../doctors/types';
 import { ChamberShift, TimeSlot } from './types';
 import { useAuth } from '../../context/AuthContext';
@@ -434,13 +435,15 @@ export const ScheduleManagerPage: React.FC = () => {
   const selectedChamber = locations.find((l) => l.id === selectedLocationId) || locations[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <PageShell>
+      <div className="space-y-8">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="relative overflow-hidden bg-slate-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-slate-900/10 border border-slate-800">
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/15 via-transparent to-blue-600/15 pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <span className="inline-flex items-center space-x-1.5 bg-blue-500/20 text-blue-300 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider border border-blue-500/30">
-              <Zap className="w-3.5 h-3.5 text-blue-400" />
+            <span className="inline-flex items-center space-x-1.5 bg-teal-500/15 text-teal-300 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider border border-teal-500/30">
+              <Zap className="w-3.5 h-3.5 text-teal-300" />
               <span>{language === 'bn' ? 'চেম্বার ও স্লট কন্ট্রোল' : 'Multi-Chamber Slot & Shift Engine'}</span>
             </span>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
@@ -1211,6 +1214,7 @@ export const ScheduleManagerPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };

@@ -7,6 +7,7 @@ import { Doctor } from '../doctors/types';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { getDoctorChambers } from '../doctors/utils/chamberUtils';
+import { PageShell, PageHero } from '../../components/Page';
 
 export const DoctorChamberPage: React.FC = () => {
   const { user } = useAuth();
@@ -192,19 +193,17 @@ export const DoctorChamberPage: React.FC = () => {
   const currentDoctor = doctors.find((d) => d.id === selectedDoctorId);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PageShell>
+      <PageHero
+        eyebrow={language === 'bn' ? 'ক্লিনিক্যাল কনসোল · লাইভ' : 'Clinical Console · Live'}
+        title={<>{t('chamber.title', 'Doctor Chamber & Live Queue')}</>}
+        subtitle={t('chamber.subtitle', 'Real-time patient intake, 5-minute break invariant, and visit status management.')}
+      />
       {/* Header Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200 shadow-sm mb-6">
-        <div>
-          <span className="text-[10px] uppercase font-bold tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-            Clinical Console · Section 4.2 & 5
-          </span>
-          <h2 className="text-2xl font-black text-slate-900 mt-1">{t('chamber.title', 'Doctor Chamber & Live Queue')}</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {t('chamber.subtitle', 'Real-time patient intake, 5-minute break invariant, and visit status management.')}
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white rounded-3xl p-5 border border-slate-200 shadow-sm mb-6">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-black text-slate-700">{language === 'bn' ? 'কনসোল নিয়ন্ত্রণ' : 'Console Controls'}</span>
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={selectedDoctorId}
@@ -369,7 +368,7 @@ export const DoctorChamberPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs table-premium">
               <thead className="bg-slate-100 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">{t('chamber.col_serial', 'Serial #')}</th>
@@ -499,6 +498,6 @@ export const DoctorChamberPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };

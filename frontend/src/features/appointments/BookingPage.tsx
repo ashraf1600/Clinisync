@@ -8,6 +8,7 @@ import { TimeSlot, DayScheduleSummary, DoctorMultiDayScheduleResponse } from '..
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { getDoctorChambers } from '../doctors/utils/chamberUtils';
+import { PageShell, PageHero } from '../../components/Page';
 
 interface BookingPageProps {
   selectedDoctor?: Doctor | null;
@@ -279,10 +280,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <PageShell wide={false}>
+      <PageHero
+        eyebrow={language === 'bn' ? 'টোকেন রিজার্ভেশন' : 'Token Reservation'}
+        title={<>{t('book.title', 'Reserve Chamber Appointment')}</>}
+        subtitle={t('book.subtitle', 'Instant token assignment · Zero advance payment required')}
+      />
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-900">{t('book.title', 'Reserve Chamber Appointment')}</h2>
-        <p className="text-xs text-slate-500 mt-1">{t('book.subtitle', 'Instant token assignment · Zero advance payment required')}</p>
 
         {/* Selected Doctor Summary Card */}
         {currentDoctor && (
@@ -652,13 +656,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ selectedDoctor, onBook
             className={`px-8 py-3 rounded-xl text-sm font-bold text-white transition cursor-pointer ${
               !selectedSlot || bookingInProgress
                 ? 'bg-slate-300 cursor-not-allowed'
-                : 'bg-teal-700 hover:bg-teal-600 shadow-md'
+                : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 shadow-lg shadow-teal-600/25'
             }`}
           >
             {bookingInProgress ? t('book.processing', 'Reserving...') : t('book.confirm_btn', 'Confirm Reservation')}
           </button>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 };

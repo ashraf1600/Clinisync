@@ -3,6 +3,8 @@ import { Camera, Plus, Save, Trash2, Clock } from 'lucide-react';
 import { doctorService } from './services/doctorService';
 import { Doctor, DoctorChamberLocation } from './types';
 import { getDoctorPhotoUrl } from './utils/chamberUtils';
+import { PageShell, PageHero } from '../../components/Page';
+import { useLanguage } from '../../context/LanguageContext';
 
 const emptyLocation = (): DoctorChamberLocation => ({
   id: crypto.randomUUID(),
@@ -18,6 +20,7 @@ const emptyLocation = (): DoctorChamberLocation => ({
 });
 
 export const DoctorProfilePage: React.FC = () => {
+  const { language } = useLanguage();
   const [profile, setProfile] = useState<Doctor | null>(null);
   const [locations, setLocations] = useState<DoctorChamberLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +85,12 @@ export const DoctorProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PageShell wide={false}>
+      <PageHero
+        eyebrow={language === 'bn' ? 'ডাক্তার প্রোফাইল' : 'Doctor Profile'}
+        title={<>{profile.name}</>}
+        subtitle={language === 'bn' ? 'পাবলিক ক্লিনিক্যাল তথ্য ও প্রতিটি হাসপাতাল চেম্বার পরিচালনা করুন।' : 'Manage your public clinical information and every hospital chamber.'}
+      />
       <form onSubmit={save} className="space-y-6">
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row gap-5 items-start">
           <div className="relative">
@@ -160,8 +168,8 @@ export const DoctorProfilePage: React.FC = () => {
           )}
         </section>
 
-        <div className="flex items-center justify-end gap-4"><span className="text-sm text-emerald-700">{message}</span><button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-700 text-white text-sm font-bold disabled:opacity-60"><Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save profile'}</button></div>
+        <div className="flex items-center justify-end gap-4"><span className="text-sm text-emerald-700">{message}</span><button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-sm font-bold shadow-lg shadow-teal-600/25 disabled:opacity-60"><Save className="w-4 h-4" />{saving ? 'Saving...' : 'Save profile'}</button></div>
       </form>
-    </div>
+    </PageShell>
   );
 };

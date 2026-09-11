@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Calendar, CheckCircle, AlertTriangle, UserCheck } from 'lucide-react';
+import { Shield, Users, Calendar, CheckCircle, AlertTriangle, UserCheck, Activity } from 'lucide-react';
 import { adminService } from './services/adminService';
 import { AdminAnalytics, AuditLogItem } from './types';
 import { useAuth } from '../../context/AuthContext';
+import { PageShell, PageHero, StatCard, EmptyState } from '../../components/Page';
 
 export const AdminPage: React.FC = () => {
   const { user } = useAuth();
@@ -31,42 +32,42 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Clinic Administration & Audit Trail</h2>
-        <p className="text-xs text-slate-500 mt-1">Operational oversight, KPI analytics, and tamper-proof log</p>
-      </div>
+    <PageShell>
+      <PageHero
+        eyebrow="Admin Console · Live Ops"
+        title={<>Clinic Administration <span className="text-gradient-teal">& Audit Trail</span></>}
+        subtitle="Operational oversight, KPI analytics, and tamper-proof log — everything updating in real time."
+        actions={
+          <button
+            onClick={loadData}
+            className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-bold transition border border-white/20 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Activity className="w-3.5 h-3.5 text-teal-300" /> Refresh Data
+          </button>
+        }
+      />
 
       {/* Analytics KPI Cards */}
       {analytics && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Total Bookings</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">{analytics.totalBookings}</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Completed</span>
-            <p className="text-2xl font-black text-teal-700 mt-1">{analytics.completedCount}</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Active Doctors</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">{analytics.activeDoctors}</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">No-Show Rate</span>
-            <p className="text-2xl font-black text-amber-700 mt-1">{analytics.noShowRatePercentage}%</p>
-          </div>
+          <StatCard label="Total Bookings" value={analytics.totalBookings} accent="slate" />
+          <StatCard label="Completed" value={analytics.completedCount} accent="teal" />
+          <StatCard label="Active Doctors" value={analytics.activeDoctors} accent="blue" />
+          <StatCard label="No-Show Rate" value={<>{analytics.noShowRatePercentage}%</>} accent="amber" />
         </div>
       )}
 
       {/* Audit Log Table */}
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700">
-          Immutable Audit Log (Compliance & Security)
+        <div className="p-4 sm:px-6 bg-slate-950 text-white flex items-center justify-between">
+          <span className="text-xs font-black tracking-wide flex items-center gap-2">
+            <Shield className="w-4 h-4 text-teal-400" /> Immutable Audit Log
+          </span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Compliance & Security</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
+          <table className="w-full text-left text-xs table-premium">
+            <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
               <tr>
                 <th className="p-3.5">Action</th>
                 <th className="p-3.5">Target Type</th>
@@ -83,13 +84,15 @@ export const AdminPage: React.FC = () => {
                 </tr>
               ) : (
                 auditLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50">
-                    <td className="p-3.5 font-bold text-slate-800">{log.action}</td>
+                  <tr key={log.id} className="hover:bg-teal-50/50 transition">
+                    <td className="p-3.5">
+                      <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">{log.action}</span>
+                    </td>
                     <td className="p-3.5 text-slate-600">{log.targetType}</td>
-                    <td className="p-3.5 text-slate-500">
+                    <td className="p-3.5 text-slate-500 tabular-nums">
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
-                    <td className="p-3.5 text-slate-400">{log.ipAddress || '127.0.0.1'}</td>
+                    <td className="p-3.5 text-slate-400 font-mono">{log.ipAddress || '127.0.0.1'}</td>
                   </tr>
                 ))
               )}
@@ -97,6 +100,6 @@ export const AdminPage: React.FC = () => {
           </table>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 };

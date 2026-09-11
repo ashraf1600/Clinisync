@@ -3,6 +3,7 @@ import { Stethoscope, Plus, Search, ShieldCheck, Award, MapPin, DollarSign, X, C
 import { doctorService } from '../doctors/services/doctorService';
 import { Doctor } from '../doctors/types';
 import { apiClient } from '../../services/api';
+import { PageShell, PageHero, StatCard } from '../../components/Page';
 
 export const DoctorOnboardingPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -114,27 +115,21 @@ export const DoctorOnboardingPage: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <span className="text-[11px] font-bold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-full uppercase border border-teal-200">
-            Admin Console · Section 4.4
-          </span>
-          <h1 className="text-3xl font-extrabold text-slate-900 mt-1">Specialist Clinician Directory</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            BMDC verification oversight, clinical profiling, and chamber fee management.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md transition self-start md:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Onboard New Specialist</span>
-        </button>
-      </div>
+    <PageShell>
+      <PageHero
+        eyebrow="Admin Console · Directory"
+        title={<>Specialist Clinician <span className="text-gradient-teal">Directory</span></>}
+        subtitle="BMDC verification oversight, clinical profiling, and chamber fee management."
+        actions={
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/25 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Onboard New Specialist</span>
+          </button>
+        }
+      />
 
       {statusMessage && (
         <div
@@ -155,26 +150,15 @@ export const DoctorOnboardingPage: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase">Total Specialists</span>
-          <p className="text-3xl font-extrabold text-slate-900 mt-1">{doctors.length}</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase">Departments Active</span>
-          <p className="text-3xl font-extrabold text-teal-700 mt-1">
-            {new Set(doctors.map((d) => d.specialization)).size}
-          </p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <span className="text-[11px] font-bold text-slate-400 uppercase">BMDC Verified</span>
-          <p className="text-3xl font-extrabold text-blue-700 mt-1">100%</p>
-        </div>
+        <StatCard label="Total Specialists" value={doctors.length} accent="slate" />
+        <StatCard label="Departments Active" value={new Set(doctors.map((d) => d.specialization)).size} accent="teal" />
+        <StatCard label="BMDC Verified" value="100%" accent="blue" />
       </div>
 
       {/* Directory Table */}
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <span className="text-xs font-bold text-slate-700">Currently Onboarded Doctors</span>
+        <div className="p-4 sm:px-6 bg-slate-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <span className="text-xs font-black tracking-wide">Currently Onboarded Doctors</span>
           <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
@@ -193,8 +177,8 @@ export const DoctorOnboardingPage: React.FC = () => {
           <div className="py-16 text-center text-slate-400 text-xs">No doctors match your filter.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
+            <table className="w-full text-left text-xs table-premium">
+              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Doctor</th>
                   <th className="py-3 px-4">Specialty</th>
@@ -447,7 +431,7 @@ export const DoctorOnboardingPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow transition"
+                  className="px-6 py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-600/25 transition"
                 >
                   {submitting ? 'Creating Profile...' : 'Save & Publish Doctor Profile'}
                 </button>
@@ -456,6 +440,6 @@ export const DoctorOnboardingPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };

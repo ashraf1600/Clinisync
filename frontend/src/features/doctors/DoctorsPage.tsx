@@ -4,6 +4,7 @@ import { doctorService } from './services/doctorService';
 import { Doctor } from './types';
 import { getDoctorChambers } from './utils/chamberUtils';
 import { DoctorAvatar } from '../../components/DoctorAvatar';
+import { PageShell, EmptyState } from '../../components/Page';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface DoctorsPageProps {
@@ -201,10 +202,12 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
   }, [specialization, searchQuery]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <PageShell>
       {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-navy-900 via-slate-800 to-teal-900 rounded-3xl p-8 text-white mb-8 shadow-xl">
-        <div className="max-w-2xl">
+      <div className="relative overflow-hidden bg-slate-950 rounded-3xl p-8 text-white mb-8 shadow-xl shadow-slate-900/10 border border-slate-800">
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/15 via-transparent to-blue-600/15 pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
+        <div className="relative max-w-2xl">
           <span className="bg-teal-600/30 text-teal-300 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide border border-teal-500/30">
             {t('doctors.hero_badge', 'Official Specialist Panel')}
           </span>
@@ -230,7 +233,7 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
       </div>
 
       {/* Specialization Filter Pills */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-4 mb-6">
+      <div className="strip-scroll flex items-center space-x-2 overflow-x-auto pb-4 mb-6">
         {specialties.map((spec) => {
           const isSelected = (!specialization && spec === 'All') || specialization === spec;
           return (
@@ -283,11 +286,11 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
 
       {/* 3. EMPTY STATE */}
       {!isLoading && !errorMessage && doctors.length === 0 && (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 max-w-md mx-auto my-8">
-          <Search className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800">No Specialists Found</h3>
-          <p className="text-xs text-slate-500 mt-1">Try adjusting your search keywords or specialty filter.</p>
-        </div>
+        <EmptyState
+          icon={<Search className="w-8 h-8" />}
+          title="No Specialists Found"
+          body="Try adjusting your search keywords or specialty filter."
+        />
       )}
 
       {/* 4. SUCCESS / CONTENT STATE */}
@@ -296,7 +299,7 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
           {doctors.map((doctor) => (
             <div
               key={doctor.id}
-              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+              className="lift bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between"
             >
               <div>
                 {/* Profile Header */}
@@ -359,7 +362,7 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
                 </div>
                 <button
                   onClick={() => onSelectDoctorForBooking(doctor)}
-                  className="px-4 py-2 bg-teal-700 hover:bg-teal-600 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                  className="px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white rounded-xl text-xs font-bold transition shadow-md shadow-teal-600/25 cursor-pointer"
                 >
                   {t('doctors.book_btn', 'Book Appointment')}
                 </button>
@@ -368,6 +371,6 @@ export const DoctorsPage: React.FC<DoctorsPageProps> = ({ onSelectDoctorForBooki
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };

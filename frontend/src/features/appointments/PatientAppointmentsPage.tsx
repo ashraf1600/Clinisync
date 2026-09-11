@@ -24,6 +24,7 @@ import { availabilityService } from '../availability/services/availabilityServic
 import { Appointment, DoctorQueueResponse } from './types';
 import { TimeSlot } from '../availability/types';
 import { ChamberPassModal } from '../../components/ChamberPassModal';
+import { PageShell, PageHero, EmptyState } from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -187,49 +188,40 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-              {language === 'bn' ? 'আমার সিরিয়াল ও চেম্বার স্লিপ' : 'My Serials & Chamber Slips'}
-            </h1>
-            <span className="bg-teal-50 text-teal-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-teal-200">
-              {appointments.length} {language === 'bn' ? 'টি অ্যাপয়েন্টমেন্ট' : 'Appointments'}
+    <PageShell wide={false}>
+      <PageHero
+        eyebrow={language === 'bn' ? 'আমার চেম্বার' : 'My Chamber'}
+        title={<>{language === 'bn' ? 'আমার সিরিয়াল ও চেম্বার স্লিপ' : 'My Serials & Chamber Slips'}</>}
+        subtitle={
+          language === 'bn'
+            ? 'আপনার বুককৃত ডাক্তার চেম্বারের লাইভ সিরিয়াল অগ্রগতি ও প্রবেশ পাস'
+            : 'Live tracking of your doctor chamber queue progress and digital passes'
+        }
+        actions={
+          <div className="flex items-center gap-2 bg-white/10 p-1.5 rounded-2xl border border-white/15">
+            <button
+              onClick={() => setFilter('upcoming')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                filter === 'upcoming' ? 'bg-teal-500 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              {language === 'bn' ? 'আসন্ন' : 'Upcoming'}
+            </button>
+            <button
+              onClick={() => setFilter('past')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                filter === 'past' ? 'bg-teal-500 text-slate-950 shadow' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              {language === 'bn' ? 'ইতিহাস' : 'Past'}
+            </button>
+            <span className="bg-white/15 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full">
+              {appointments.length}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            {language === 'bn'
-              ? 'আপনার বুককৃত ডাক্তার চেম্বারের লাইভ সিরিয়াল অগ্রগতি ও প্রবেশ পাস'
-              : 'Live tracking of your doctor chamber queue progress and digital passes'}
-          </p>
-        </div>
-
-        {/* Filter Toggle Pills */}
-        <div className="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-2xl self-start sm:self-auto border border-slate-200">
-          <button
-            onClick={() => setFilter('upcoming')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              filter === 'upcoming'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {language === 'bn' ? 'আসন্ন সিরিয়াল (Upcoming)' : 'Upcoming'}
-          </button>
-          <button
-            onClick={() => setFilter('past')}
-            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-              filter === 'past'
-                ? 'bg-teal-700 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {language === 'bn' ? 'পূর্ববর্তী ইতিহাস (Past)' : 'Past History'}
-          </button>
-        </div>
-      </div>
+        }
+      />
+      <div className="space-y-6">
 
       {/* Main Content Area */}
       {loading ? (
@@ -250,36 +242,27 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
           </button>
         </div>
       ) : appointments.length === 0 ? (
-        /* Dynamic Empty State */
-        <div className="bg-white rounded-3xl p-12 sm:p-16 text-center border border-slate-200 shadow-sm space-y-4">
-          <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-            <Ticket className="w-8 h-8 text-slate-400" />
-          </div>
-
-          <div className="max-w-md mx-auto space-y-1">
-            <h3 className="text-base sm:text-lg font-black text-slate-800">
-              {language === 'bn' ? 'আপনার কোনো সক্রিয় সিরিয়াল বা স্লিপ নেই' : `No ${filter} appointments found`}
-            </h3>
-            <p className="text-xs text-slate-500">
-              {language === 'bn'
-                ? 'বিশেষজ্ঞ ডাক্তারের সিরিয়াল নিতে ডাক্তার তালিকা থেকে আপনার পছন্দমত সময় বুকিং করুন।'
-                : 'You have not reserved any appointments in this category. Book your visit from the specialist directory.'}
-            </p>
-          </div>
-
-          <div className="pt-2">
+        <EmptyState
+          icon={<Ticket className="w-8 h-8" />}
+          title={language === 'bn' ? 'আপনার কোনো সক্রিয় সিরিয়াল বা স্লিপ নেই' : `No ${filter} appointments found`}
+          body={
+            language === 'bn'
+              ? 'বিশেষজ্ঞ ডাক্তারের সিরিয়াল নিতে ডাক্তার তালিকা থেকে আপনার পছন্দমত সময় বুকিং করুন।'
+              : 'You have not reserved any appointments in this category. Book your visit from the specialist directory.'
+          }
+          action={
             <button
               onClick={() => {
                 if (onNavigateToDoctors) onNavigateToDoctors();
                 else window.location.hash = 'doctors';
               }}
-              className="px-6 py-2.5 bg-teal-700 hover:bg-teal-600 text-white rounded-xl text-xs font-extrabold transition shadow-md inline-flex items-center space-x-2 cursor-pointer"
+              className="px-6 py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white rounded-xl text-xs font-extrabold transition shadow-lg shadow-teal-600/25 inline-flex items-center space-x-2 cursor-pointer"
             >
               <Stethoscope className="w-4 h-4" />
               <span>{language === 'bn' ? 'ডাক্তার খুঁজুন ও সিরিয়াল নিন' : 'Find Doctor & Book Serial'}</span>
             </button>
-          </div>
-        </div>
+          }
+        />
       ) : (
         /* Appointment Cards List */
         <div className="space-y-4">
@@ -303,7 +286,7 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
             return (
               <div
                 key={appt.id}
-                className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6"
+                className="lift bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6"
               >
                 <div className="flex items-start space-x-4">
                   {/* Big Serial Token Badge */}
@@ -561,6 +544,7 @@ export const PatientAppointmentsPage: React.FC<PatientAppointmentsPageProps> = (
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };

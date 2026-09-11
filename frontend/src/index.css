@@ -12,6 +12,46 @@ body {
   background-color: #F8FAFC;
   color: #0F172A;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Premium clinical UI ---------- */
+.lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.25);
+}
+
+.text-gradient-teal {
+  background: linear-gradient(92deg, #14b8a6 10%, #38bdf8 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* thin elegant horizontal scrollers */
+.strip-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(20, 184, 166, 0.45) transparent;
+}
+.strip-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.strip-scroll::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.45);
+  border-radius: 999px;
+}
+.strip-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* sticky premium table head */
+.table-premium thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 /* ---------- CliniSync landing motion ---------- */
