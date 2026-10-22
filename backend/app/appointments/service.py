@@ -14,12 +14,14 @@ from app.appointments.schemas import (
     QueueResumeResponse, AppointmentVerifyResponse, WalkInRequest
 )
 from app.availability.service import AvailabilityService, MAX_APPOINTMENT_MINUTES
+from app.core.cache import shared_store
 from app.core.exceptions import NotFoundException, ConflictException, SlotConflictException, BadRequestException, ForbiddenException
 from app.core.timezone import DHAKA_TZ, to_utc, dhaka_date, dhaka_day_bounds_utc, format_local
 from app.notifications.models import Notification
 
-# Global memory state for queue breaks (per process; use Redis when running several workers)
-queue_pause_registry = {}
+# Queue breaks live in the shared store (Redis) so every worker sees the same state
+def _pause_key(doctor_id: uuid.UUID) -> str:
+    return f"queue_pause:{doctor_id}"
 
 # Appointments a patient can still attend
 ACTIVE_STATUSES = ["pending", "confirmed"]
@@ -688,14 +690,12 @@ class AppointmentService:
 
         is_paused = False
         pause_message = None
-        pause_data = queue_pause_registry.get(str(doctor_id))
-        if pause_data:
-            if pause_data.get("resume_at") and pause_data["resume_at"] > now_utc:
-                is_paused = target_date == dhaka_today
-                if is_paused:
-                    pause_message = pause_data.get("reason") or "Doctor is on a short clinical break"
-            else:
-                queue_pause_registry.pop(str(doctor_id), None)
+        pause_data = await shared_store.get_json(_pause_key(doctor_id))
+        if pause_data and datetime.fromisoformat(pause_data["resume_at"]) > now_utc:
+            # A break only affects today's live queue
+            is_paused = target_date == dhaka_today
+            if is_paused:
+                pause_message = pause_data.get("reason") or "Doctor is on a short clinical break"
 
         items = []
         current_running_serial = None
@@ -820,12 +820,11 @@ class AppointmentService:
         now = datetime.now(timezone.utc)
         resume_at = now + timedelta(minutes=data.pause_minutes)
 
-        queue_pause_registry[str(doctor_id)] = {
-            "is_paused": True,
-            "resume_at": resume_at,
-            "pause_minutes": data.pause_minutes,
-            "reason": data.reason,
-        }
+        await shared_store.set_json(
+            _pause_key(doctor_id),
+            {"resume_at": resume_at.isoformat(), "pause_minutes": data.pause_minutes, "reason": data.reason},
+            ttl_seconds=data.pause_minutes * 60,
+        )
 
         # Notify today's waiting patients (this is what trackers display)
         for w in await self._today_waiting(doctor_id):
@@ -852,7 +851,7 @@ class AppointmentService:
         await self._assert_doctor_access(doctor, actor)
         doc_name = doctor.user.name if doctor.user else "Doctor"
 
-        queue_pause_registry.pop(str(doctor_id), None)
+        await shared_store.delete(_pause_key(doctor_id))
 
         waiting = await self._today_waiting(doctor_id)
         next_serial = waiting[0].token_number if waiting else 0

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from app.core.cache import shared_store
 from app.core.config import settings
 from sqlalchemy.exc import IntegrityError
 from app.core.exceptions import AppException
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
     # Startup check
     yield
     # Teardown
+    await shared_store.close()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

@@ -55,9 +55,53 @@ async def test_forgot_and_reset_password(client: AsyncClient):
     assert res1.status_code == 200
     assert "message" in res1.json()
 
+    # Unknown accounts get the same answer (no email enumeration)
+    res_unknown = await client.post("/api/v1/auth/forgot-password", json={"email": f"nobody_{uuid.uuid4().hex[:6]}@example.com"})
+    assert res_unknown.status_code == 200
+    assert res_unknown.json() == res1.json()
+
+    # A forged token is rejected
     res2 = await client.post("/api/v1/auth/reset-password", json={"token": "test-token", "newPassword": "NewPassword123!"})
-    assert res2.status_code == 200
-    assert "message" in res2.json()
+    assert res2.status_code == 400
+    assert res2.json()["error"]["code"] == "INVALID_RESET_TOKEN"
+
+    # Full flow with the token that would be emailed
+    from app.core.security import create_password_reset_token
+    email = f"reset_{uuid.uuid4().hex[:6]}@example.com"
+    reg = await client.post("/api/v1/auth/register", json={"name": "Reset User", "email": email, "password": "Password123!"})
+    assert reg.status_code == 201
+    old_refresh = reg.json()["tokens"]["refreshToken"]
+    me = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {reg.json()['tokens']['accessToken']}"})
+    from app.users.models import User
+    from app.core.database import AsyncSessionLocal
+    from sqlalchemy import select
+    async with AsyncSessionLocal() as s:
+        user = (await s.execute(select(User).where(User.id == uuid.UUID(me.json()["id"])))).scalar_one()
+        token = create_password_reset_token(user.id, user.password_hash)
+
+    ok = await client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "BrandNew456!"})
+    assert ok.status_code == 200, ok.text
+    assert (await client.post("/api/v1/auth/login", json={"email": email, "password": "BrandNew456!"})).status_code == 200
+
+    # Single use, and sessions from before the reset are revoked
+    reuse = await client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "Another789!"})
+    assert reuse.status_code == 400
+    assert (await client.post("/api/v1/auth/refresh", json={"refreshToken": old_refresh})).status_code == 401
+
+@pytest.mark.asyncio
+async def test_login_lockout_after_failed_attempts():
+    from httpx import ASGITransport
+    from app.main import app
+    from app.core.config import settings
+    # Unique client IP so the lockout cannot affect other tests
+    transport = ASGITransport(app=app, client=(f"10.{uuid.uuid4().int % 250}.0.{uuid.uuid4().int % 250}", 1234))
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        for _ in range(settings.LOGIN_RATE_LIMIT_MAX):
+            r = await c.post("/api/v1/auth/login", json={"email": "patient@example.com", "password": "wrong-Password1"})
+            assert r.status_code == 401
+        locked = await c.post("/api/v1/auth/login", json={"email": "patient@example.com", "password": "Password123!"})
+        assert locked.status_code == 429
+        assert locked.json()["error"]["code"] == "RATE_LIMITED"
 
 @pytest.mark.asyncio
 async def test_register_with_roles(client: AsyncClient):

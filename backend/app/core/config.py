@@ -61,6 +61,18 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
 
+    # Password reset
+    PASSWORD_RESET_EXPIRE_MINUTES: int = 30
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Outgoing email (leave SMTP_HOST empty to log emails instead of sending)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "no-reply@clinisync.local"
+    SMTP_USE_TLS: bool = True
+
     # Upload limits
     MAX_PHOTO_UPLOAD_BYTES: int = 5 * 1024 * 1024
 

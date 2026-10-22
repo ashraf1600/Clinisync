@@ -4,9 +4,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.users.models import User
 from app.users.schemas import UserRegister, UserLogin, UserUpdate
-from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, decode_token
+from app.core.security import (
+    get_password_hash, verify_password, create_access_token, create_refresh_token, decode_token,
+    create_password_reset_token, password_fingerprint,
+)
+from app.core.email import send_email
 from app.core.config import settings
 from app.core.exceptions import ConflictException, UnauthorizedException, NotFoundException, BadRequestException, ForbiddenException
+
+def _check_password_strength(password: str) -> None:
+    if not re.search(r"[A-Z]", password) or not re.search(r"[a-z]", password) or not re.search(r"[0-9]", password):
+        raise BadRequestException("Password needs upper, lower and a number (8+ chars)")
+
 
 class UserService:
     def __init__(self, db: AsyncSession):
@@ -21,8 +30,7 @@ class UserService:
         return result.scalar_one_or_none()
 
     async def register(self, data: UserRegister) -> tuple[User, str, str]:
-        if not re.search(r"[A-Z]", data.password) or not re.search(r"[a-z]", data.password) or not re.search(r"[0-9]", data.password):
-            raise BadRequestException("Password needs upper, lower and a number (8+ chars)")
+        _check_password_strength(data.password)
 
         existing = await self.get_by_email(data.email)
         if existing:
@@ -72,7 +80,7 @@ class UserService:
         await self.db.refresh(user)
 
         access_token = create_access_token(user.id, user.role)
-        refresh_token = create_refresh_token(user.id, user.role)
+        refresh_token = create_refresh_token(user.id, user.role, user.password_hash)
         return user, access_token, refresh_token
 
     async def login(self, data: UserLogin) -> tuple[User, str, str]:
@@ -83,7 +91,7 @@ class UserService:
             raise UnauthorizedException("User account is deactivated")
 
         access_token = create_access_token(user.id, user.role)
-        refresh_token = create_refresh_token(user.id, user.role)
+        refresh_token = create_refresh_token(user.id, user.role, user.password_hash)
         return user, access_token, refresh_token
 
     async def refresh_tokens(self, refresh_token: str) -> str:
@@ -97,6 +105,9 @@ class UserService:
         user = await self.get_by_id(user_id)
         if not user or not user.is_active:
             raise UnauthorizedException("User inactive or not found")
+        # Sessions issued before a password change are revoked
+        if payload.get("pwd") and payload["pwd"] != password_fingerprint(user.password_hash):
+            raise UnauthorizedException("Session expired after a password change. Please log in again.")
         return create_access_token(user.id, user.role)
 
     async def update_profile(self, user_id: uuid.UUID, data: UserUpdate) -> User:
@@ -111,3 +122,36 @@ class UserService:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+
+    async def request_password_reset(self, email: str) -> None:
+        """Email a reset link. Silent for unknown accounts so emails cannot be enumerated."""
+        from app.appointments.service import WALKIN_EMAIL_DOMAIN
+        user = await self.get_by_email(email)
+        if not user or not user.is_active or user.email.endswith(WALKIN_EMAIL_DOMAIN):
+            return
+        token = create_password_reset_token(user.id, user.password_hash)
+        link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+        await send_email(
+            user.email,
+            "Reset your CliniSync password",
+            f"Hello {user.name},\n\n"
+            f"Use this link to set a new password (valid for {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes):\n{link}\n\n"
+            "If you did not request this, you can ignore this email.",
+        )
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        invalid = BadRequestException("This reset link is invalid or has expired", code="INVALID_RESET_TOKEN")
+        try:
+            payload = decode_token(token)
+            user_id = uuid.UUID(str(payload.get("sub")))
+        except (UnauthorizedException, ValueError, TypeError):
+            raise invalid
+        if payload.get("type") != "password_reset":
+            raise invalid
+        user = await self.get_by_id(user_id)
+        # The fingerprint makes the link single-use: any password change invalidates it
+        if not user or not user.is_active or payload.get("pwd") != password_fingerprint(user.password_hash):
+            raise invalid
+        _check_password_strength(new_password)
+        user.password_hash = get_password_hash(new_password)
+        await self.db.commit()

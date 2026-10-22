@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from jose import jwt, JWTError
@@ -32,13 +33,31 @@ def create_access_token(subject: str | Any, role: str, expires_delta: Optional[t
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def create_refresh_token(subject: str | Any, role: str) -> str:
+def password_fingerprint(password_hash: str) -> str:
+    """Short digest of the stored hash; changes whenever the password changes."""
+    return hashlib.sha256(password_hash.encode("utf-8")).hexdigest()[:16]
+
+def create_refresh_token(subject: str | Any, role: str, password_hash: Optional[str] = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {
         "exp": expire,
         "sub": str(subject),
         "role": role,
         "type": "refresh"
+    }
+    if password_hash:
+        # Lets a password change revoke existing sessions
+        to_encode["pwd"] = password_fingerprint(password_hash)
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def create_password_reset_token(subject: str | Any, password_hash: str) -> str:
+    """Single-use reset token: invalid as soon as the password (hash) changes."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.PASSWORD_RESET_EXPIRE_MINUTES)
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "type": "password_reset",
+        "pwd": password_fingerprint(password_hash),
     }
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
