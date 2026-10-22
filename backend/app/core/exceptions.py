@@ -47,3 +47,7 @@ class ForbiddenException(AppException):
 class BadRequestException(AppException):
     def __init__(self, message: str = "Invalid request syntax or parameters", code: str = "VALIDATION_ERROR", details: Optional[Dict[str, Any]] = None):
         super().__init__(status.HTTP_400_BAD_REQUEST, code, message, details)
+
+class TooManyRequestsException(AppException):
+    def __init__(self, message: str = "Too many requests. Please try again later.", code: str = "RATE_LIMITED"):
+        super().__init__(status.HTTP_429_TOO_MANY_REQUESTS, code, message)

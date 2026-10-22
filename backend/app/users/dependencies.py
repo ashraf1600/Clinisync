@@ -11,6 +11,13 @@ from app.users.service import UserService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
+def subject_from_payload(payload: dict) -> uuid.UUID:
+    """Parse the token subject; a malformed `sub` is an auth failure, not a 500."""
+    try:
+        return uuid.UUID(str(payload.get("sub")))
+    except (ValueError, TypeError):
+        raise UnauthorizedException("Invalid token subject")
+
 async def get_current_user(
     token: Annotated[str | None, Depends(oauth2_scheme)] = None,
     db: AsyncSession = Depends(get_db)
@@ -20,7 +27,7 @@ async def get_current_user(
     payload = decode_token(token)
     if payload.get("type") != "access":
         raise UnauthorizedException("Invalid access token")
-    user_id = uuid.UUID(payload.get("sub"))
+    user_id = subject_from_payload(payload)
     service = UserService(db)
     user = await service.get_by_id(user_id)
     if not user or not user.is_active:
@@ -37,7 +44,7 @@ async def get_optional_current_user(
         payload = decode_token(token)
         if payload.get("type") != "access":
             return None
-        user_id = uuid.UUID(payload.get("sub"))
+        user_id = subject_from_payload(payload)
         service = UserService(db)
         user = await service.get_by_id(user_id)
         if not user or not user.is_active:

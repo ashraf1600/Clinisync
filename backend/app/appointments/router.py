@@ -9,7 +9,7 @@ from app.appointments.schemas import (
     AppointmentCancelRequest, AppointmentStatusUpdateRequest,
     AppointmentPaymentUpdateRequest, WalkInRequest,
     DoctorQueueResponse, QueuePauseRequest, QueuePauseResponse,
-    QueueResumeResponse, AppointmentVerifyResponse
+    QueueResumeResponse, AppointmentVerifyResponse, parse_location_id
 )
 from app.appointments.service import AppointmentService
 from app.users.models import User
@@ -36,7 +36,7 @@ async def reschedule_appointment(
     db: AsyncSession = Depends(get_db)
 ):
     service = AppointmentService(db)
-    return await service.reschedule(id, current_user.id, payload)
+    return await service.reschedule(id, current_user, payload)
 
 @router.put("/{id}/cancel", status_code=status.HTTP_200_OK)
 async def cancel_appointment(
@@ -85,15 +85,9 @@ async def get_doctor_chamber_queue(
     current_user: Annotated[Optional[User], Depends(get_optional_current_user)] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    loc = None
-    if location_id and location_id != "default":
-        try:
-            loc = uuid.UUID(str(location_id))
-        except Exception:
-            loc = None
+    loc = parse_location_id(location_id)
     service = AppointmentService(db)
-    role = current_user.role if current_user else "guest"
-    return await service.get_doctor_queue(doctorId, date_param, role, location_id=loc)
+    return await service.get_doctor_queue(doctorId, date_param, current_user, location_id=loc)
 
 @router.get("/patient/me", response_model=List[AppointmentRead], status_code=status.HTTP_200_OK)
 async def get_my_appointments(
@@ -112,7 +106,7 @@ async def verify_chamber_pass(
 ):
     """Reception check-in: validate a scanned chamber-pass QR (doctor/admin only)."""
     service = AppointmentService(db)
-    return await service.verify_for_checkin(id, current_user.role)
+    return await service.verify_for_checkin(id, current_user)
 
 @router.put("/doctor/{doctorId}/queue-pause", response_model=QueuePauseResponse, status_code=status.HTTP_200_OK)
 async def pause_doctor_queue(
@@ -122,7 +116,7 @@ async def pause_doctor_queue(
     db: AsyncSession = Depends(get_db)
 ):
     service = AppointmentService(db)
-    return await service.pause_queue(doctorId, payload)
+    return await service.pause_queue(doctorId, payload, actor=current_user)
 
 @router.put("/doctor/{doctorId}/queue-resume", response_model=QueueResumeResponse, status_code=status.HTTP_200_OK)
 async def resume_doctor_queue(
@@ -131,4 +125,4 @@ async def resume_doctor_queue(
     db: AsyncSession = Depends(get_db)
 ):
     service = AppointmentService(db)
-    return await service.resume_queue(doctorId)
+    return await service.resume_queue(doctorId, actor=current_user)

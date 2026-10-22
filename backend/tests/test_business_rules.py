@@ -172,9 +172,9 @@ async def test_update_status_wrong_doctor_forbidden(client: AsyncClient):
     # Doctor B tries to update -> 403
     res = await client.put(f"/api/v1/appointments/{appt_id}/status", headers={"Authorization": f"Bearer {docB_tok}"}, json={"status": "completed"})
     assert res.status_code == 403, res.text
-    # Doctor A succeeds
-    res_ok = await client.put(f"/api/v1/appointments/{appt_id}/status", headers={"Authorization": f"Bearer {docA_tok}"}, json={"status": "completed"})
-    assert res_ok.status_code == 200
+    # Doctor A succeeds (a future visit can be cancelled, but not completed)
+    res_ok = await client.put(f"/api/v1/appointments/{appt_id}/status", headers={"Authorization": f"Bearer {docA_tok}"}, json={"status": "cancelled"})
+    assert res_ok.status_code == 200, res_ok.text
 
 async def test_doctor_receives_notification_on_book(client: AsyncClient):
     pat_user, pat_tok = await _make_user(client, "patient")

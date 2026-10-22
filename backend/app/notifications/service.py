@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func, and_
+from sqlalchemy import select, update, func, and_, or_
 from app.notifications.models import UserDevice, Notification
 from app.appointments.models import Appointment
 from app.notifications.schemas import (
@@ -11,6 +11,7 @@ from app.notifications.schemas import (
     ReminderRunResponse
 )
 from app.core.exceptions import NotFoundException
+from app.core.timezone import to_utc, format_local
 
 class NotificationService:
     def __init__(self, db: AsyncSession):
@@ -22,6 +23,14 @@ class NotificationService:
         )
         res = await self.db.execute(query)
         device = res.scalar_one_or_none()
+
+        # A token identifies one physical device: when another account signs in on
+        # it, the previous owner must stop receiving pushes there.
+        await self.db.execute(
+            update(UserDevice)
+            .where(and_(UserDevice.fcm_token == data.fcm_token, UserDevice.user_id != user_id))
+            .values(is_active=False)
+        )
 
         if device:
             device.is_active = True
@@ -64,7 +73,7 @@ class NotificationService:
 
         # Count unread
         unread_res = await self.db.execute(
-            select(func.count()).where(and_(Notification.user_id == user_id, Notification.is_read == False))
+            select(func.count()).select_from(Notification).where(and_(Notification.user_id == user_id, Notification.is_read == False))
         )
         unread_count = unread_res.scalar_one()
 
@@ -130,7 +139,8 @@ class NotificationService:
     ) -> tuple[int, int]:
         """Create reminders for appointments starting inside the window.
 
-        Idempotent: skips appointments that already have this reminder type.
+        Idempotent per appointment *slot*: skips appointments that already have this
+        reminder type for the same start time, so a rescheduled visit is reminded again.
         Returns (checked, sent).
         """
         res = await self.db.execute(
@@ -145,18 +155,24 @@ class NotificationService:
         appts = list(res.scalars().all())
         sent = 0
         for a in appts:
+            slot_key = to_utc(a.start_time).isoformat()
             dup = await self.db.execute(
-                select(func.count()).where(
+                select(func.count()).select_from(Notification).where(
                     and_(
                         Notification.appointment_id == a.id,
                         Notification.notification_type == ntype,
+                        or_(
+                            Notification.metadata_["startTime"].astext == slot_key,
+                            # Reminders created before slot tracking count as sent
+                            Notification.metadata_["startTime"].astext.is_(None),
+                        ),
                     )
                 )
             )
             if dup.scalar_one() > 0:
                 continue
             doc_name = a.doctor.user.name if (a.doctor and a.doctor.user) else "Doctor"
-            when = a.start_time.strftime("%b %d, %I:%M %p")
+            when = format_local(a.start_time)
             try:
                 self.db.add(
                     Notification(
@@ -165,7 +181,7 @@ class NotificationService:
                         title=title,
                         body=f"Reminder: Serial #{a.token_number} with {doc_name} {when_word} ({when}). Please arrive 15 min early.",
                         notification_type=ntype,
-                        metadata_={"tokenNumber": a.token_number, "doctorName": doc_name},
+                        metadata_={"tokenNumber": a.token_number, "doctorName": doc_name, "startTime": slot_key},
                     )
                 )
                 await self.db.commit()

@@ -17,19 +17,23 @@ async def test_appointment_booking_and_queue_flow(client: AsyncClient):
     docs_res = await client.get("/api/v1/doctors")
     doctor_id = docs_res.json()["items"][0]["id"]
 
-    # 3. Book slot with unique future date
+    # 3. Book a free slot inside the doctor's sitting hours on a random future date
     import random
-    rand_day = random.randint(1, 28)
-    rand_month = random.randint(1, 12)
-    rand_hour = random.randint(9, 16)
-    target_date_str = f"2027-{rand_month:02d}-{rand_day:02d}"
-    start_time_str = f"{target_date_str}T{rand_hour:02d}:00:00Z"
-    end_time_str = f"{target_date_str}T{rand_hour:02d}:30:00Z"
+    slot = None
+    for _ in range(30):
+        target_date_str = f"2027-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}"
+        avail = await client.get(f"/api/v1/availability/{doctor_id}", params={"date": target_date_str})
+        assert avail.status_code == 200
+        free = [s for s in avail.json()["slots"] if s["isAvailable"]]
+        if free:
+            slot = random.choice(free)
+            break
+    assert slot, "no free slot found for the test doctor"
 
     book_payload = {
         "doctorId": doctor_id,
-        "startTime": start_time_str,
-        "endTime": end_time_str,
+        "startTime": slot["startTime"],
+        "endTime": slot["endTime"],
         "visitType": "new_consultation",
         "chiefComplaint": "Chest tightness and dyspnea for 3 days."
     }

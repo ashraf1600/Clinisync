@@ -4,25 +4,48 @@ from typing import List, Optional
 from pydantic import Field, field_validator
 from app.core.base_schema import CamelModel
 
+VISIT_TYPES = {"new_consultation", "followup", "report_review"}
+_FOLLOWUP_ALIASES = {"follow_up", "follow-up", "followup"}
+
+
+def normalize_visit_type(v: Optional[str]) -> str:
+    value = (v or "new_consultation").strip().lower()
+    if value in _FOLLOWUP_ALIASES:
+        return "followup"
+    if value not in VISIT_TYPES:
+        raise ValueError(f"visitType must be one of {sorted(VISIT_TYPES)}")
+    return value
+
+
+def parse_location_id(v):
+    """Clients send "default" (or garbage) for the doctor's primary chamber."""
+    if not v or v == "default" or str(v).startswith("default"):
+        return None
+    if isinstance(v, uuid.UUID):
+        return v
+    try:
+        return uuid.UUID(str(v))
+    except (ValueError, TypeError):
+        return None
+
+
 class AppointmentBookRequest(CamelModel):
     doctor_id: uuid.UUID
     location_id: Optional[uuid.UUID] = None
     start_time: datetime
     end_time: datetime
     visit_type: str = "new_consultation"
-    chief_complaint: Optional[str] = None
+    chief_complaint: Optional[str] = Field(None, max_length=2000)
 
     @field_validator("location_id", mode="before")
     @classmethod
     def validate_location_id(cls, v):
-        if not v or v == "default" or str(v).startswith("default"):
-            return None
-        if isinstance(v, uuid.UUID):
-            return v
-        try:
-            return uuid.UUID(str(v))
-        except (ValueError, TypeError):
-            return None
+        return parse_location_id(v)
+
+    @field_validator("visit_type", mode="before")
+    @classmethod
+    def validate_visit_type(cls, v):
+        return normalize_visit_type(v)
 
 class AppointmentRead(CamelModel):
     id: uuid.UUID
@@ -50,11 +73,11 @@ class AppointmentRescheduleRequest(CamelModel):
     new_end_time: datetime
 
 class AppointmentCancelRequest(CamelModel):
-    reason: Optional[str] = "Patient requested cancellation"
+    reason: Optional[str] = Field("Patient requested cancellation", max_length=255)
 
 class AppointmentStatusUpdateRequest(CamelModel):
-    status: str
-    doctor_notes: Optional[str] = None
+    status: str = Field(..., pattern="^(pending|confirmed|completed|cancelled|no_show)$")
+    doctor_notes: Optional[str] = Field(None, max_length=5000)
 
 class AppointmentPaymentUpdateRequest(CamelModel):
     payment_status: str = Field(..., pattern="^(pay_at_chamber|paid|waived)$")
@@ -62,12 +85,22 @@ class AppointmentPaymentUpdateRequest(CamelModel):
 class WalkInRequest(CamelModel):
     doctor_id: uuid.UUID
     location_id: Optional[uuid.UUID] = None
-    patient_name: str = Field(..., min_length=2)
-    patient_phone: Optional[str] = None
+    patient_name: str = Field(..., min_length=2, max_length=255)
+    patient_phone: Optional[str] = Field(None, max_length=20)
     start_time: datetime
     end_time: datetime
     visit_type: str = "new_consultation"
-    chief_complaint: Optional[str] = None
+    chief_complaint: Optional[str] = Field(None, max_length=2000)
+
+    @field_validator("location_id", mode="before")
+    @classmethod
+    def validate_location_id(cls, v):
+        return parse_location_id(v)
+
+    @field_validator("visit_type", mode="before")
+    @classmethod
+    def validate_visit_type(cls, v):
+        return normalize_visit_type(v)
 
 class DoctorQueueItem(CamelModel):
     id: uuid.UUID
@@ -122,8 +155,8 @@ class AppointmentVerifyResponse(CamelModel):
     fee: float = 0.0
 
 class QueuePauseRequest(CamelModel):
-    pause_minutes: int = 5
-    reason: Optional[str] = "Short clinical break / documentation"
+    pause_minutes: int = Field(5, ge=1, le=180)
+    reason: Optional[str] = Field("Short clinical break / documentation", max_length=255)
 
 class QueuePauseResponse(CamelModel):
     is_paused: bool = True

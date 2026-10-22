@@ -191,13 +191,24 @@ export const DoctorChamberPage: React.FC = () => {
   };
 
   const currentDoctor = doctors.find((d) => d.id === selectedDoctorId);
+  const isSelfChamber = user?.role === 'doctor' && !!currentDoctor && currentDoctor.userId === user?.id;
 
   return (
     <PageShell>
       <PageHero
-        eyebrow={language === 'bn' ? 'ক্লিনিক্যাল কনসোল · লাইভ' : 'Clinical Console · Live'}
-        title={<>{t('chamber.title', 'Doctor Chamber & Live Queue')}</>}
-        subtitle={t('chamber.subtitle', 'Real-time patient intake, 5-minute break invariant, and visit status management.')}
+        eyebrow={isSelfChamber
+          ? (language === 'bn' ? `আমার চেম্বার · লাইভ · ${currentDoctor?.name || ''}` : `My Chamber · Live · ${currentDoctor?.name || ''}`)
+          : (language === 'bn' ? 'ক্লিনিক্যাল কনসোল · লাইভ' : 'Clinical Console · Live')}
+        title={<>
+          {isSelfChamber
+            ? (language === 'bn' ? 'আমার চেম্বার ও লাইভ সিরিয়াল কিউ' : 'My Chamber & Live Serial Queue')
+            : t('chamber.title', 'Doctor Chamber & Live Queue')}
+        </>}
+        subtitle={isSelfChamber
+          ? (language === 'bn'
+            ? 'এটা আপনার নিজের চেম্বার কনসোল — আজকের রোগী, বিরতি ও ভিজিট এখান থেকে পরিচালনা করুন।'
+            : 'Your own chamber console — manage today’s patients, breaks and visits from here.')
+          : t('chamber.subtitle', 'Real-time patient intake, 5-minute break invariant, and visit status management.')}
       />
       {/* Header Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white rounded-3xl p-5 border border-slate-200 shadow-sm mb-6">

@@ -7,6 +7,7 @@ from app.admin.models import AuditLog
 from app.appointments.models import Appointment
 from app.doctors.models import Doctor
 from app.users.models import User
+from app.appointments.service import WALKIN_EMAIL_DOMAIN
 from app.admin.schemas import AdminAnalyticsResponse, AuditLogItem, AuditLogListResponse
 
 class AdminService:
@@ -14,33 +15,38 @@ class AdminService:
         self.db = db
 
     async def get_analytics(self) -> AdminAnalyticsResponse:
-        # Total bookings
-        tot_b = await self.db.execute(select(func.count()).select_from(Appointment))
-        total_bookings = tot_b.scalar_one()
+        # One grouped scan instead of a query per status
+        status_res = await self.db.execute(
+            select(Appointment.status, func.count()).group_by(Appointment.status)
+        )
+        by_status = {row[0]: row[1] for row in status_res.all()}
+        total_bookings = sum(by_status.values())
+        completed_count = by_status.get("completed", 0)
+        no_show_count = by_status.get("no_show", 0)
+        cancelled_count = by_status.get("cancelled", 0)
 
-        # Completed
-        comp = await self.db.execute(select(func.count()).where(Appointment.status == "completed"))
-        completed_count = comp.scalar_one()
-
-        # No show
-        ns = await self.db.execute(select(func.count()).where(Appointment.status == "no_show"))
-        no_show_count = ns.scalar_one()
-
-        # Cancelled
-        canc = await self.db.execute(select(func.count()).where(Appointment.status == "cancelled"))
-        cancelled_count = canc.scalar_one()
-
-        # Active doctors
-        docs = await self.db.execute(select(func.count()).select_from(Doctor))
+        # Doctors whose login is still active
+        docs = await self.db.execute(
+            select(func.count()).select_from(Doctor).join(User, Doctor.user_id == User.id).where(User.is_active.is_(True))
+        )
         active_doctors = docs.scalar_one()
 
-        # Registered patients
-        pts = await self.db.execute(select(func.count()).where(User.role == "patient"))
+        # Real patient accounts (walk-in guest records are not registrations)
+        pts = await self.db.execute(
+            select(func.count()).select_from(User).where(
+                User.role == "patient",
+                User.is_active.is_(True),
+                User.email.not_like(f"%{WALKIN_EMAIL_DOMAIN}"),
+            )
+        )
         registered_patients = pts.scalar_one()
 
+        # No-show rate is measured against visits that actually came due
+        # (completed + no-show); cancelled and upcoming bookings would dilute it.
+        attended_or_missed = completed_count + no_show_count
         no_show_rate = 0.0
-        if total_bookings > 0:
-            no_show_rate = round((no_show_count / total_bookings) * 100, 2)
+        if attended_or_missed > 0:
+            no_show_rate = round((no_show_count / attended_or_missed) * 100, 2)
 
         return AdminAnalyticsResponse(
             total_bookings=total_bookings,

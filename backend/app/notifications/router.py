@@ -1,3 +1,4 @@
+import hmac
 import uuid
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Header, Query, status
@@ -60,7 +61,12 @@ async def run_due_reminders(
 ):
     """Cron-triggered 24h/1h reminders. Guarded by shared secret (no login needed)."""
     expected = settings.CRON_SECRET_KEY
-    if not expected or expected == "change-me-in-production" or cron_secret != expected:
+    if (
+        not expected
+        or expected == "change-me-in-production"
+        or not cron_secret
+        or not hmac.compare_digest(cron_secret.encode(), expected.encode())
+    ):
         raise UnauthorizedException("Invalid cron secret")
     service = NotificationService(db)
     return await service.send_due_reminders()

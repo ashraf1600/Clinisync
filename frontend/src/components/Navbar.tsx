@@ -62,8 +62,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       // Doctor does NOT need patient tracker; they have the real-time Chamber Control Console!
       // Profile is accessed directly by clicking their name in the top bar.
       return [
-        { id: 'chamber', label: t('nav.chamber', 'Chamber Queue'), icon: Stethoscope },
-        { id: 'schedule', label: t('nav.slots', 'Slot & Shifts'), icon: Zap },
+        { id: 'chamber', label: t('nav.my_chamber', 'My Chamber'), icon: Stethoscope },
+        { id: 'schedule', label: t('nav.my_slots', 'My Slots'), icon: Zap },
         { id: 'doctors', label: t('nav.specialists', 'Specialists'), icon: Stethoscope },
       ];
     }

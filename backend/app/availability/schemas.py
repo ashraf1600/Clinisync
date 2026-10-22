@@ -1,8 +1,22 @@
 import uuid
 from datetime import date, datetime
-from typing import List, Optional
-from pydantic import Field
+from typing import Annotated, List, Optional
+from pydantic import Field, model_validator
 from app.core.base_schema import CamelModel
+
+# Chamber wall-clock time "HH:MM" or "HH:MM:SS" (24h, Asia/Dhaka)
+WallClock = Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$")]
+DayOfWeek = Annotated[int, Field(ge=0, le=6)]
+SlotMinutes = Annotated[int, Field(ge=5, le=240)]
+BufferMinutes = Annotated[int, Field(ge=0, le=120)]
+
+
+class _ShiftWindow(CamelModel):
+    @model_validator(mode="after")
+    def check_window(self):
+        if self.start_time >= self.end_time:
+            raise ValueError("startTime must be before endTime")
+        return self
 
 class TimeSlot(CamelModel):
     start_time: str
@@ -22,15 +36,15 @@ class DoctorDayAvailabilityResponse(CamelModel):
     buffer_minutes: int
     slots: List[TimeSlot]
 
-class ShiftItem(CamelModel):
-    day_of_week: int = Field(..., ge=0, le=6)
-    start_time: str
-    end_time: str
+class ShiftItem(_ShiftWindow):
+    day_of_week: DayOfWeek
+    start_time: WallClock
+    end_time: WallClock
     location_id: Optional[uuid.UUID] = None
     facility_name: Optional[str] = None
     chamber_room: Optional[str] = None
-    slot_duration_minutes: int = 30
-    buffer_minutes: int = 10
+    slot_duration_minutes: SlotMinutes = 30
+    buffer_minutes: BufferMinutes = 10
 
 class RecurringShiftsUpdateRequest(CamelModel):
     shifts: List[ShiftItem]
@@ -38,7 +52,7 @@ class RecurringShiftsUpdateRequest(CamelModel):
 class ExceptionCreateRequest(CamelModel):
     exception_date: date
     is_available: bool = False
-    reason: Optional[str] = "Weekly Clinic Holiday"
+    reason: Optional[str] = Field("Weekly Clinic Holiday", max_length=255)
 
 class ExceptionRead(CamelModel):
     id: uuid.UUID
@@ -48,17 +62,25 @@ class ExceptionRead(CamelModel):
     reason: Optional[str] = None
     created_at: datetime
 
-class BulkGenerateRequest(CamelModel):
+class BulkGenerateRequest(_ShiftWindow):
     target_range: str = "month"
     start_date: date
     end_date: date
     location_id: Optional[uuid.UUID] = None
-    days_of_week: List[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4, 6])
-    start_time: str = "09:00"
-    end_time: str = "13:00"
-    slot_duration_minutes: int = 30
-    buffer_minutes: int = 10
+    days_of_week: List[DayOfWeek] = Field(default_factory=lambda: [0, 1, 2, 3, 4, 6], min_length=1)
+    start_time: WallClock = "09:00"
+    end_time: WallClock = "13:00"
+    slot_duration_minutes: SlotMinutes = 30
+    buffer_minutes: BufferMinutes = 10
     apply_holidays: bool = True
+
+    @model_validator(mode="after")
+    def check_dates(self):
+        if self.end_date < self.start_date:
+            raise ValueError("endDate must be on or after startDate")
+        if (self.end_date - self.start_date).days > 366:
+            raise ValueError("Date range cannot exceed one year")
+        return self
 
 class BulkGenerateResponse(CamelModel):
     total_slots_created: int
@@ -84,13 +106,13 @@ class ChamberShiftRead(CamelModel):
     buffer_minutes: int
     is_active: bool
 
-class ChamberShiftCreate(CamelModel):
+class ChamberShiftCreate(_ShiftWindow):
     location_id: Optional[uuid.UUID] = None
-    days_of_week: List[int] = Field(..., min_length=1)
-    start_time: str
-    end_time: str
-    slot_duration_minutes: int = 20
-    buffer_minutes: int = 5
+    days_of_week: List[DayOfWeek] = Field(..., min_length=1)
+    start_time: WallClock
+    end_time: WallClock
+    slot_duration_minutes: SlotMinutes = 20
+    buffer_minutes: BufferMinutes = 5
     is_active: bool = True
 
 class ChamberShiftResponse(CamelModel):
@@ -109,6 +131,10 @@ class DayScheduleSummary(CamelModel):
     total_slots: int
     available_slots_count: int
     is_full: bool
+    # Contract aliases (API_CONTRACT): availableCount mirrors availableSlotsCount,
+    # status is "available" | "full" | "off"
+    available_count: int = 0
+    status: str = "off"
     slots: List[TimeSlot]
 
 class DoctorMultiDayScheduleResponse(CamelModel):

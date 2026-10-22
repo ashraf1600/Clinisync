@@ -61,6 +61,13 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
 
+    # Upload limits
+    MAX_PHOTO_UPLOAD_BYTES: int = 5 * 1024 * 1024
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENVIRONMENT.lower() in ("development", "dev", "local", "test")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -69,3 +76,8 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
+_DEFAULT_SECRET_KEY = "clinisync_dev_secret_key_change_in_production_min_32_bytes_long"
+if not settings.is_development and settings.SECRET_KEY == _DEFAULT_SECRET_KEY:
+    # Anyone could forge JWTs with the public default key
+    raise RuntimeError("SECRET_KEY must be set to a strong unique value outside development")

@@ -1,9 +1,8 @@
 import uuid
 from typing import Optional, Annotated
-from pathlib import Path
-from uuid import uuid4
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.core.database import get_db
 from app.doctors.schemas import (
     DoctorListResponse, DoctorRead, DoctorCreate, DoctorUpdate,
@@ -84,22 +83,14 @@ async def upload_my_profile_photo(
     photo: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ):
-    if photo.content_type not in {"image/jpeg", "image/png", "image/webp"}:
-        from app.core.exceptions import BadRequestException
-        raise BadRequestException("Only JPEG, PNG, and WebP images are supported")
     doctor_service = DoctorService(db)
     doctor = await doctor_service.get_by_user_id(current_user.id)
     if not doctor:
         from app.core.exceptions import NotFoundException
         raise NotFoundException("Doctor profile not found")
-    upload_dir = Path(__file__).resolve().parents[2] / "uploads" / "profile_photos"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    extension = Path(photo.filename or "photo.jpg").suffix.lower() or ".jpg"
-    filename = f"{doctor.id}-{uuid4().hex}{extension}"
-    (upload_dir / filename).write_bytes(await photo.read())
-    doctor.profile_photo_url = f"/uploads/profile_photos/{filename}"
-    await db.commit()
-    await db.refresh(doctor)
+    # Read one byte past the limit so oversized files are rejected without loading them fully
+    content = await photo.read(settings.MAX_PHOTO_UPLOAD_BYTES + 1)
+    doctor = await doctor_service.save_profile_photo(doctor, content, photo.content_type)
     return doctor_service.to_read(doctor, current_user.name)
 
 

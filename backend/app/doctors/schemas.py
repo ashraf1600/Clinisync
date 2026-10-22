@@ -18,35 +18,35 @@ class DoctorBase(CamelModel):
 
 class DoctorCreate(CamelModel):
     user_id: uuid.UUID
-    specialization: str
-    degrees: str = "MBBS"
-    bmdc_number: str
-    designation: Optional[str] = None
-    facility_name: str = "Popular Diagnostic Centre"
-    chamber_room: str = "Room #402, Level 4"
+    specialization: str = Field(..., min_length=2, max_length=100)
+    degrees: str = Field("MBBS", max_length=255)
+    bmdc_number: str = Field(..., min_length=1, max_length=50)
+    designation: Optional[str] = Field(None, max_length=150)
+    facility_name: str = Field("Popular Diagnostic Centre", min_length=1, max_length=255)
+    chamber_room: str = Field("Room #402, Level 4", min_length=1, max_length=255)
     profile_photo_url: Optional[str] = None
     bio: Optional[str] = None
-    consultation_fee: Decimal = Decimal("1200.00")
-    followup_fee: Decimal = Decimal("800.00")
-    rating: float = 4.9
-    experience_years: int = 15
+    consultation_fee: Decimal = Field(Decimal("1200.00"), ge=0, max_digits=10, decimal_places=2)
+    followup_fee: Decimal = Field(Decimal("800.00"), ge=0, max_digits=10, decimal_places=2)
+    rating: float = Field(4.9, ge=0, le=5)
+    experience_years: int = Field(15, ge=0, le=80)
     locations: List["DoctorLocationCreate"] = Field(default_factory=list)
 
 
 class DoctorLocationCreate(CamelModel):
-    facility_name: str
-    branch_area: Optional[str] = None
-    chamber_room: str
-    address: Optional[str] = None
-    contact_phone: Optional[str] = None
+    facility_name: str = Field(..., min_length=1, max_length=255)
+    branch_area: Optional[str] = Field(None, max_length=255)
+    chamber_room: str = Field(..., min_length=1, max_length=255)
+    address: Optional[str] = Field(None, max_length=500)
+    contact_phone: Optional[str] = Field(None, max_length=30)
 
 
 class DoctorLocationUpdate(CamelModel):
-    facility_name: Optional[str] = None
-    branch_area: Optional[str] = None
-    chamber_room: Optional[str] = None
-    address: Optional[str] = None
-    contact_phone: Optional[str] = None
+    facility_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    branch_area: Optional[str] = Field(None, max_length=255)
+    chamber_room: Optional[str] = Field(None, min_length=1, max_length=255)
+    address: Optional[str] = Field(None, max_length=500)
+    contact_phone: Optional[str] = Field(None, max_length=30)
     is_active: Optional[bool] = None
 
 
@@ -56,15 +56,15 @@ class DoctorLocationRead(DoctorLocationCreate):
 
 
 class DoctorUpdate(CamelModel):
-    name: Optional[str] = None
-    specialization: Optional[str] = None
-    degrees: Optional[str] = None
-    bmdc_number: Optional[str] = None
-    designation: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
+    specialization: Optional[str] = Field(None, min_length=2, max_length=100)
+    degrees: Optional[str] = Field(None, max_length=255)
+    bmdc_number: Optional[str] = Field(None, min_length=1, max_length=50)
+    designation: Optional[str] = Field(None, max_length=150)
     bio: Optional[str] = None
-    experience_years: Optional[int] = None
-    consultation_fee: Optional[Decimal] = None
-    followup_fee: Optional[Decimal] = None
+    experience_years: Optional[int] = Field(None, ge=0, le=80)
+    consultation_fee: Optional[Decimal] = Field(None, ge=0, max_digits=10, decimal_places=2)
+    followup_fee: Optional[Decimal] = Field(None, ge=0, max_digits=10, decimal_places=2)
     locations: Optional[List[DoctorLocationCreate]] = None
 
 class DoctorRead(CamelModel):

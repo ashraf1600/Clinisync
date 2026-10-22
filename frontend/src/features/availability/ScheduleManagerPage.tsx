@@ -36,6 +36,8 @@ export const ScheduleManagerPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [activeDoctor, setActiveDoctor] = useState<Doctor | null>(null);
+  // Own virtual chamber feel for logged-in doctors
+  const isSelfChamber = user?.role === 'doctor' && !!activeDoctor && activeDoctor.userId === user?.id;
   const [locations, setLocations] = useState<DoctorChamberLocation[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [shifts, setShifts] = useState<ChamberShift[]>([]);
@@ -447,12 +449,18 @@ export const ScheduleManagerPage: React.FC = () => {
               <span>{language === 'bn' ? 'চেম্বার ও স্লট কন্ট্রোল' : 'Multi-Chamber Slot & Shift Engine'}</span>
             </span>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              {language === 'bn' ? 'প্রতি চেম্বারে স্লট ও সময়সূচী ব্যবস্থাপনা' : 'Chamber Slot Time & Shift Manager'}
+              {isSelfChamber
+                ? (language === 'bn' ? `আপনার চেম্বার, ${activeDoctor?.name}` : `My Chamber — ${activeDoctor?.name}`)
+                : (language === 'bn' ? 'প্রতি চেম্বারে স্লট ও সময়সূচী ব্যবস্থাপনা' : 'Chamber Slot Time & Shift Manager')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              {language === 'bn'
-                ? 'ডাক্তার বা এডমিন হিসেবে প্রতিটি চেম্বারের জন্য নির্দিষ্ট দিন, শুরু ও শেষের সময়, এবং রোগী দেখার স্লট সময় নির্ধারণ করুন।'
-                : 'Configure dedicated slot times and shifts for each consultation chamber (Evercare, Square, Popular) with full doctor and admin control.'}
+              {isSelfChamber
+                ? (language === 'bn'
+                  ? 'এটা আপনার নিজের ভার্চুয়াল চেম্বার। আপনার বসার দিন, সময় ও স্লট এখানেই সাজান — রোগীরা সেই অনুযায়ী বুক করবে।'
+                  : 'This is your own virtual chamber. Set your sitting days, hours and slots here — patients will book accordingly.')
+                : (language === 'bn'
+                  ? 'ডাক্তার বা এডমিন হিসেবে প্রতিটি চেম্বারের জন্য নির্দিষ্ট দিন, শুরু ও শেষের সময়, এবং রোগী দেখার স্লট সময় নির্ধারণ করুন।'
+                  : 'Configure dedicated slot times and shifts for each consultation chamber (Evercare, Square, Popular) with full doctor and admin control.')}
             </p>
           </div>
 
@@ -487,14 +495,20 @@ export const ScheduleManagerPage: React.FC = () => {
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-black text-amber-900">
-                {language === 'bn'
-                  ? 'এই ডাক্তারের কোনো চেম্বার স্লট কনফিগার করা হয়নি'
-                  : 'No chamber slots configured for this doctor'}
+                {isSelfChamber
+                  ? (language === 'bn' ? 'আপনার চেম্বারে এখনো কোনো স্লট যোগ করেননি' : 'You haven’t added your chamber slots yet')
+                  : (language === 'bn'
+                    ? 'এই ডাক্তারের কোনো চেম্বার স্লট কনফিগার করা হয়নি'
+                    : 'No chamber slots configured for this doctor')}
               </p>
               <p className="text-xs text-amber-800 mt-1">
-                {language === 'bn'
-                  ? 'ডিফল্ট ১৭:০০–২১:০০ দেখানো হচ্ছে। রোগীরা সঠিক সময়ে বুক করতে "স্লট সময় যোগ করুন" দিয়ে আসল সময় সেট করুন।'
-                  : 'Default 17:00–21:00 is shown for preview. Add real slot times with “Add Slot Time” so patients book the correct hours.'}
+                {isSelfChamber
+                  ? (language === 'bn'
+                    ? 'আপাতত ডিফল্ট ১৭:০০–২১:০০ দেখাচ্ছে। আপনার আসল বসার সময় সেট করতে নিচের বোতামে আপনার প্রথম স্লট যোগ করুন।'
+                    : 'Showing default 17:00–21:00 for now. Tap below to add your first slot with your real sitting hours.')
+                  : (language === 'bn'
+                    ? 'ডিফল্ট ১৭:০০–২১:০০ দেখানো হচ্ছে। রোগীরা সঠিক সময়ে বুক করতে "স্লট সময় যোগ করুন" দিয়ে আসল সময় সেট করুন।'
+                    : 'Default 17:00–21:00 is shown for preview. Add real slot times with “Add Slot Time” so patients book the correct hours.')}
               </p>
             </div>
           </div>
@@ -505,7 +519,9 @@ export const ScheduleManagerPage: React.FC = () => {
             }}
             className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-black shadow cursor-pointer shrink-0"
           >
-            {language === 'bn' ? 'প্রথম স্লট যোগ করুন' : 'Add First Slot Time'}
+            {isSelfChamber
+              ? (language === 'bn' ? 'আপনার প্রথম স্লট যোগ করুন' : 'Add Your First Slot')
+              : (language === 'bn' ? 'প্রথম স্লট যোগ করুন' : 'Add First Slot Time')}
           </button>
         </div>
       )}
@@ -533,14 +549,22 @@ export const ScheduleManagerPage: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 inline-block">
-                All Chambers ({locations.length})
+                {isSelfChamber
+                  ? (language === 'bn' ? `আপনার চেম্বার (${locations.length})` : `My Chambers (${locations.length})`)
+                  : `All Chambers (${locations.length})`}
               </span>
               <span className="text-xs text-slate-400">
-                Doctor: <strong className="text-slate-800">{activeDoctor?.name}</strong>
+                {isSelfChamber
+                  ? (language === 'bn'
+                    ? <>এটা আপনার ভার্চুয়াল চেম্বার · <strong className="text-slate-800">{activeDoctor?.name} (আপনি)</strong></>
+                    : <>Your virtual chamber · <strong className="text-slate-800">{activeDoctor?.name} (You)</strong></>)
+                  : <>Doctor: <strong className="text-slate-800">{activeDoctor?.name}</strong></>}
               </span>
             </div>
             <h2 className="text-lg font-black text-slate-900 mt-1">
-              {language === 'bn' ? 'সকল চেম্বার ও স্লট সময়সূচী' : 'Chambers & Configured Slot Times'}
+              {isSelfChamber
+                ? (language === 'bn' ? 'আপনার চেম্বার ও স্লট সময়সূচী' : 'My Chambers & Slot Times')
+                : (language === 'bn' ? 'সকল চেম্বার ও স্লট সময়সূচী' : 'Chambers & Configured Slot Times')}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               {language === 'bn'

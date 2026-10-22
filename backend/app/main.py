@@ -1,3 +1,5 @@
+import logging
+import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status, Request
 from fastapi.responses import JSONResponse
@@ -5,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from app.core.config import settings
+from sqlalchemy.exc import IntegrityError
 from app.core.exceptions import AppException
 
 # Import routers
@@ -52,15 +55,23 @@ async def app_exception_handler(request: Request, exc: AppException):
         content=exc.detail,
     )
 
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    # A DB constraint caught a race the service-level checks missed
+    logging.getLogger("uvicorn.error").warning(f"Integrity error on {request.url.path}: {exc.orig}")
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"error": {"code": "CONFLICT", "message": "The request conflicts with existing data. Please refresh and try again.", "status": 409}},
+    )
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    import traceback
-    import logging
     logging.getLogger("uvicorn.error").error(f"Unhandled error on {request.url.path}: {exc}\n{traceback.format_exc()}")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Internal Server Error", "error": str(exc)},
-    )
+    error = {"code": "INTERNAL_ERROR", "message": "Internal Server Error", "status": 500}
+    # Never leak internals (SQL, stack details) outside local development
+    if settings.is_development:
+        error["details"] = {"exception": str(exc)}
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"error": error})
 
 # Health Check Route
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])

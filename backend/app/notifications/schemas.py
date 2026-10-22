@@ -5,9 +5,9 @@ from pydantic import Field
 from app.core.base_schema import CamelModel
 
 class DeviceRegisterRequest(CamelModel):
-    fcm_token: str
+    fcm_token: str = Field(..., min_length=1, max_length=4096)
     device_type: str = Field("android", pattern="^(android|ios|web)$")
-    device_model: Optional[str] = "Pixel 7 Pro"
+    device_model: Optional[str] = Field(None, max_length=100)
 
 class DeviceRead(CamelModel):
     device_id: uuid.UUID
@@ -43,7 +43,8 @@ class MarkAllReadResponse(CamelModel):
     marked_count: int
 
 class ReminderRunResponse(CamelModel):
-    checked_24h: int = 0
-    sent_24h: int = 0
-    checked_1h: int = 0
-    sent_1h: int = 0
+    # Explicit aliases: to_camel would produce "checked24H"
+    checked_24h: int = Field(0, alias="checked24h")
+    sent_24h: int = Field(0, alias="sent24h")
+    checked_1h: int = Field(0, alias="checked1h")
+    sent_1h: int = Field(0, alias="sent1h")

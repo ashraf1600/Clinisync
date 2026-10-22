@@ -2,16 +2,18 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from typing import AsyncGenerator
-from app.main import app
 from app.core.database import engine, Base
 
 # Import all models so Base knows about all tables
-import app.users.models  # noqa
-import app.doctors.models  # noqa
-import app.availability.models  # noqa
-import app.appointments.models  # noqa
-import app.notifications.models  # noqa
-import app.admin.models  # noqa
+# (before importing app.main: `import app.x.models` rebinds name `app` to the package)
+from app.users import models as _users_models  # noqa: F401
+from app.doctors import models as _doctors_models  # noqa: F401
+from app.availability import models as _availability_models  # noqa: F401
+from app.appointments import models as _appointments_models  # noqa: F401
+from app.notifications import models as _notifications_models  # noqa: F401
+from app.admin import models as _admin_models  # noqa: F401
+
+from app.main import app
 
 from sqlalchemy import text
 
